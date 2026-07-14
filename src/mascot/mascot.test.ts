@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { assignSpeciesIfMissing, recordDailyLogin } from './mascot'
 import type { Profile } from '../lib/profile'
 
-function fakeClient(row: Profile) {
+function fakeClient(row: Profile, insertError: unknown = null) {
   const inserts: { table: string; values: any }[] = []
   const client = {
     inserts,
@@ -12,7 +12,7 @@ function fakeClient(row: Profile) {
       }),
       insert: (values: any) => {
         inserts.push({ table, values })
-        return Promise.resolve({ error: null })
+        return Promise.resolve({ error: insertError })
       },
     }),
   }
@@ -46,7 +46,7 @@ describe('recordDailyLogin', () => {
     expect(p.last_active_on).toBe('2026-07-14')
     expect(p.streak_days).toBe(1)
     expect(client.inserts).toEqual([
-      { table: 'xp_events', values: { user_id: 'u1', type: 'daily_login', amount: 10 } },
+      { table: 'xp_events', values: { user_id: 'u1', type: 'daily_login', amount: 10, day: '2026-07-14' } },
     ])
   })
   it('increments the streak when the previous active day was yesterday', async () => {
@@ -60,5 +60,12 @@ describe('recordDailyLogin', () => {
     const p = await recordDailyLogin(client, todayRow, '2026-07-14')
     expect(p.xp).toBe(70)
     expect(client.inserts).toHaveLength(0)
+  })
+  it('does NOT grant XP when the ledger insert is rejected (duplicate day)', async () => {
+    // Simulates the unique-index race: a concurrent run already inserted today.
+    const client = fakeClient(base, { code: '23505', message: 'duplicate key' })
+    const p = await recordDailyLogin(client, base, '2026-07-14')
+    expect(p.xp).toBe(40) // unchanged — no double grant
+    expect(p).toBe(base)
   })
 })

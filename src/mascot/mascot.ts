@@ -22,7 +22,13 @@ export async function recordDailyLogin(
 ): Promise<Profile> {
   if (profile.last_active_on === todayISO) return profile
   const amount = XP_AMOUNTS.daily_login
-  await client.from('xp_events').insert({ user_id: profile.id, type: 'daily_login', amount })
+  // The (user_id, day) unique index makes this the source of truth for "once per
+  // day": if a concurrent/StrictMode run already inserted today's login, this
+  // insert errors and we return without granting XP again.
+  const { error } = await client
+    .from('xp_events')
+    .insert({ user_id: profile.id, type: 'daily_login', amount, day: todayISO })
+  if (error) return profile
   const continued = profile.last_active_on === prevDayISO(todayISO)
   const streak = continued ? (profile.streak_days ?? 0) + 1 : 1
   return upsertProfile(client, {

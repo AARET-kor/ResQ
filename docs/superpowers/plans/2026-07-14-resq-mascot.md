@@ -51,7 +51,7 @@ src/App.test.tsx   # MODIFY: mock useMascot so gating tests stay isolated
 - [ ] **Step 1: Write the migration `supabase/migrations/0002_mascot.sql`**
 
 ```sql
--- Mascot: extend profiles + an XP ledger. Additive/idempotent.
+-- Mascot: extend profiles + an XP ledger. Re-runnable (idempotent).
 alter table public.profiles
   add column if not exists mascot_species text,
   add column if not exists mascot_name text,
@@ -63,10 +63,23 @@ create table if not exists public.xp_events (
   user_id uuid not null references auth.users(id) on delete cascade,
   type text not null,
   amount integer not null,
+  day date not null,            -- the user's LOCAL calendar day (client-supplied)
   created_at timestamptz not null default now()
 );
 
+create index if not exists xp_events_user_created_idx
+  on public.xp_events (user_id, created_at);
+
+-- At most one daily_login per user per local day. `day` is the client's local
+-- date (not created_at::date) so KST early-morning logins aren't rejected by a
+-- UTC boundary. Makes daily-login idempotent under a race / StrictMode double-run.
+create unique index if not exists xp_events_daily_login_unique
+  on public.xp_events (user_id, day) where type = 'daily_login';
+
 alter table public.xp_events enable row level security;
+
+drop policy if exists "xp_events_select_own" on public.xp_events;
+drop policy if exists "xp_events_insert_own" on public.xp_events;
 
 create policy "xp_events_select_own" on public.xp_events
   for select using (auth.uid() = user_id);
@@ -743,7 +756,12 @@ export async function recordDailyLogin(
 ): Promise<Profile> {
   if (profile.last_active_on === todayISO) return profile
   const amount = XP_AMOUNTS.daily_login
-  await client.from('xp_events').insert({ user_id: profile.id, type: 'daily_login', amount })
+  // (user_id, day) unique index is the source of truth for "once per day": a
+  // concurrent/StrictMode duplicate insert errors and we return without granting.
+  const { error } = await client
+    .from('xp_events')
+    .insert({ user_id: profile.id, type: 'daily_login', amount, day: todayISO })
+  if (error) return profile
   const continued = profile.last_active_on === prevDayISO(todayISO)
   const streak = continued ? (profile.streak_days ?? 0) + 1 : 1
   return upsertProfile(client, {
@@ -923,7 +941,7 @@ git commit -m "feat(mascot): MascotZone component with stage carousel"
 - [ ] **Step 1: Create `src/mascot/useMascot.ts`**
 
 ```tsx
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Profile } from '../lib/profile'
 import { assignSpeciesIfMissing, recordDailyLogin } from './mascot'
@@ -934,22 +952,33 @@ import { todayISO } from './today'
  * Ensures the user has a hatched species and records the once-per-day login,
  * pushing the updated profile back up via onProfileChange. Returns the derived
  * MascotState for rendering (null until a species exists).
+ *
+ * Runs the side effect exactly ONCE per user id: `ranFor` survives React
+ * StrictMode's mount→cleanup→mount so the ledger isn't double-written in dev,
+ * and the result is only applied if the user hasn't changed since (`currentUser`).
  */
 export function useMascot(
   profile: Profile | null,
   onProfileChange: (p: Profile) => void,
 ): MascotState | null {
   const userId = profile?.id
+  const ranFor = useRef<string | null>(null)
+  const currentUser = useRef<string | undefined>(undefined)
+  currentUser.current = userId
+
   useEffect(() => {
     if (!profile || !userId) return
-    let active = true
+    if (ranFor.current === userId) return
+    ranFor.current = userId
     ;(async () => {
       let p = await assignSpeciesIfMissing(supabase, profile, Math.random())
       p = await recordDailyLogin(supabase, p, todayISO())
-      if (active) onProfileChange(p)
-    })().catch((e) => console.error(e))
-    return () => { active = false }
-    // Runs once per user; onProfileChange/profile identity intentionally excluded.
+      if (currentUser.current === userId) onProfileChange(p)
+    })().catch((e) => {
+      console.error(e)
+      if (ranFor.current === userId) ranFor.current = null
+    })
+    // Runs once per user id; profile/onProfileChange identity intentionally excluded.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId])
 
