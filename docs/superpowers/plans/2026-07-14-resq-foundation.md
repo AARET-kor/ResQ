@@ -236,11 +236,11 @@ import '@testing-library/jest-dom'
 
 - [ ] **Step 2: Create `.env.example` (committed) and `.env.local` (real values, gitignored)**
 
-`.env.example`:
+`.env.example` (use valid-shaped placeholders — `@supabase/supabase-js` `createClient()` throws on a non-URL value, and Vite auto-loads `.env.local` even in test mode):
 
 ```
-VITE_SUPABASE_URL=your-project-url
-VITE_SUPABASE_ANON_KEY=your-anon-key
+VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key-here
 ```
 
 Copy it to `.env.local` and fill in the real Supabase values from Prerequisites. `.env.local` is already covered by `.gitignore` (the `.env*` pattern) — confirm with `git status` that it is untracked.
