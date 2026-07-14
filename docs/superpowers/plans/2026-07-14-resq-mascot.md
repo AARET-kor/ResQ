@@ -838,10 +838,11 @@ export function MascotZone({ state }: { state: MascotState }) {
       className="relative mx-auto max-w-[1831px] overflow-hidden px-6 py-16 sm:px-10"
       style={{ background: `radial-gradient(120% 80% at 50% 120%, ${state.tint}55 0%, transparent 70%)` }}
     >
-      {/* ghost level text */}
-      <div className="pointer-events-none absolute inset-x-0 top-6 flex justify-center">
+      {/* ghost level text — decorative bare numeral (aria-hidden so it doesn't
+          collide with the "Lv. N" badge in tests/AT) */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-6 flex justify-center">
         <span className="select-none font-grotesk uppercase leading-none text-white/5" style={{ fontSize: 'clamp(80px, 20vw, 260px)' }}>
-          Lv.{state.level}
+          {state.level}
         </span>
       </div>
 
