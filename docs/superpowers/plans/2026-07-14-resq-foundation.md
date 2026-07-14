@@ -1008,10 +1008,13 @@ Expected: FAIL — cannot find module `./Hero`.
 - [ ] **Step 3: Create `src/components/Hero.tsx`**
 
 ```tsx
-import { Mail, Twitter, Github } from 'lucide-react'
+import { Mail, Bird, Globe } from 'lucide-react'
 import { LiquidGlass } from './LiquidGlass'
 import { computeDday } from '../lib/dday'
 import type { Profile } from '../lib/profile'
+
+// NOTE: lucide-react v1 removed brand icons (Twitter/Github). We use
+// Mail / Bird / Globe as the email / social / web trio throughout ResQ.
 
 const NAV = [
   { label: '홈', active: true },
@@ -1074,7 +1077,7 @@ export function Hero({
             </LiquidGlass>
           </nav>
           <div className="hidden gap-2 lg:flex">
-            {[Mail, Twitter, Github].map((Icon, i) => (
+            {[Mail, Bird, Globe].map((Icon, i) => (
               <LiquidGlass key={i} className="rounded-[1rem]">
                 <button className="flex h-[56px] w-[56px] items-center justify-center transition hover:bg-white/10">
                   <Icon size={20} />
