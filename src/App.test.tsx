@@ -17,6 +17,8 @@ vi.mock('./lib/profile', async (importOriginal) => {
 
 vi.mock('./lib/supabase', () => ({ supabase: {} }))
 
+vi.mock('./mascot/useMascot', () => ({ useMascot: () => null }))
+
 import App from './App'
 import type { Profile } from './lib/profile'
 
