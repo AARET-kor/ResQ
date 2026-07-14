@@ -236,11 +236,11 @@ import '@testing-library/jest-dom'
 
 - [ ] **Step 2: Create `.env.example` (committed) and `.env.local` (real values, gitignored)**
 
-`.env.example`:
+`.env.example` (use valid-shaped placeholders — `@supabase/supabase-js` `createClient()` throws on a non-URL value, and Vite auto-loads `.env.local` even in test mode):
 
 ```
-VITE_SUPABASE_URL=your-project-url
-VITE_SUPABASE_ANON_KEY=your-anon-key
+VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key-here
 ```
 
 Copy it to `.env.local` and fill in the real Supabase values from Prerequisites. `.env.local` is already covered by `.gitignore` (the `.env*` pattern) — confirm with `git status` that it is untracked.
@@ -566,8 +566,12 @@ We mock the supabase module so no network is hit.
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 
-const getSession = vi.fn()
-const onAuthStateChange = vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } }))
+// vi.hoisted: vi.mock factories are hoisted above const declarations, so the
+// mock fns must be created inside vi.hoisted to be referenceable in the factory.
+const { getSession, onAuthStateChange } = vi.hoisted(() => ({
+  getSession: vi.fn(),
+  onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
+}))
 
 vi.mock('../lib/supabase', () => ({
   supabase: { auth: { getSession, onAuthStateChange, signInWithOAuth: vi.fn(), signOut: vi.fn() } },
@@ -1008,10 +1012,13 @@ Expected: FAIL — cannot find module `./Hero`.
 - [ ] **Step 3: Create `src/components/Hero.tsx`**
 
 ```tsx
-import { Mail, Twitter, Github } from 'lucide-react'
+import { Mail, Bird, Globe } from 'lucide-react'
 import { LiquidGlass } from './LiquidGlass'
 import { computeDday } from '../lib/dday'
 import type { Profile } from '../lib/profile'
+
+// NOTE: lucide-react v1 removed brand icons (Twitter/Github). We use
+// Mail / Bird / Globe as the email / social / web trio throughout ResQ.
 
 const NAV = [
   { label: '홈', active: true },
@@ -1074,7 +1081,7 @@ export function Hero({
             </LiquidGlass>
           </nav>
           <div className="hidden gap-2 lg:flex">
-            {[Mail, Twitter, Github].map((Icon, i) => (
+            {[Mail, Bird, Globe].map((Icon, i) => (
               <LiquidGlass key={i} className="rounded-[1rem]">
                 <button className="flex h-[56px] w-[56px] items-center justify-center transition hover:bg-white/10">
                   <Icon size={20} />
