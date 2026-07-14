@@ -566,8 +566,12 @@ We mock the supabase module so no network is hit.
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 
-const getSession = vi.fn()
-const onAuthStateChange = vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } }))
+// vi.hoisted: vi.mock factories are hoisted above const declarations, so the
+// mock fns must be created inside vi.hoisted to be referenceable in the factory.
+const { getSession, onAuthStateChange } = vi.hoisted(() => ({
+  getSession: vi.fn(),
+  onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
+}))
 
 vi.mock('../lib/supabase', () => ({
   supabase: { auth: { getSession, onAuthStateChange, signInWithOAuth: vi.fn(), signOut: vi.fn() } },
