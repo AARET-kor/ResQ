@@ -737,8 +737,9 @@ describe('Hero (mascot stage)', () => {
     render(<Hero profile={profile} mascot={mascot} onSignOut={() => {}} now={new Date('2028-02-18')} />)
     expect(screen.getByText(/큐비/)).toBeInTheDocument()
     expect(screen.getByText(/Lv\.\s*2/)).toBeInTheDocument()
-    expect(screen.getByText(new RegExp(mascot.variantLabel))).toBeInTheDocument()
-    expect(screen.getByText(/강아지/)).toBeInTheDocument()
+    // Match the stat bar's combined "variant + species" text — a bare /강아지/
+    // would double-match the aria-hidden ghost label (RTL doesn't filter aria-hidden).
+    expect(screen.getByText(new RegExp(`${mascot.variantLabel} ${mascot.speciesLabel}`))).toBeInTheDocument()
   })
   it('previews other stages without changing the actual stage', async () => {
     render(<Hero profile={profile} mascot={mascot} onSignOut={() => {}} now={new Date('2028-02-18')} />)
