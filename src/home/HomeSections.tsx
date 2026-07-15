@@ -103,7 +103,8 @@ export function HomeSections({
     try {
       const e = await addEvent(supabase, userId, v)
       const { start, end } = monthRangeISO(year, month0)
-      if (e.starts_at >= start && e.starts_at.slice(0, 10) < end) {
+      const day = e.starts_at.slice(0, 10)
+      if (day >= start && day < end) {
         setEvents((s) => [...s, e].sort((a, b) => a.starts_at.localeCompare(b.starts_at)))
       }
     } catch (e) { console.error(e) }

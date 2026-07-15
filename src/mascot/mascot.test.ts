@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { recordDailyLogin, recordXpEvent } from './mascot'
 import type { Profile } from '../lib/profile'
 
-function fakeClient(row: Profile, insertError: unknown = null) {
+function fakeClient(row: Profile, insertError: unknown = null, dbXp?: number) {
   const inserts: { table: string; values: any }[] = []
   const client = {
     inserts,
@@ -14,6 +14,11 @@ function fakeClient(row: Profile, insertError: unknown = null) {
         inserts.push({ table, values })
         return Promise.resolve({ error: insertError })
       },
+      select: () => ({
+        eq: () => ({
+          maybeSingle: () => Promise.resolve({ data: { xp: dbXp ?? row.xp }, error: null }),
+        }),
+      }),
     }),
   }
   return client as any
@@ -71,5 +76,11 @@ describe('recordXpEvent', () => {
     const client = fakeClient(base, { code: '500', message: 'boom' })
     const p = await recordXpEvent(client, base, 'schedule_done')
     expect(p).toBe(base)
+  })
+  it('adds onto the freshest stored xp, not the stale caller profile', async () => {
+    // DB says 100 (another grant landed since this closure captured xp=40).
+    const client = fakeClient(base, null, 100)
+    const p = await recordXpEvent(client, base, 'schedule_done')
+    expect(p.xp).toBe(108) // 100 + 8 — the concurrent grant is not lost
   })
 })

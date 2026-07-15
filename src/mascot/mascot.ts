@@ -43,5 +43,14 @@ export async function recordXpEvent(
     .from('xp_events')
     .insert({ user_id: profile.id, type, amount, day: todayISO() })
   if (error) return profile
-  return upsertProfile(client, { id: profile.id, xp: (profile.xp ?? 0) + amount })
+  // Re-read the stored xp before adding: two grants fired from the same render
+  // window would otherwise both add to the same stale closure value and one
+  // grant would be lost on upsert. The ledger insert above stays authoritative.
+  const { data } = await client
+    .from('profiles')
+    .select('xp')
+    .eq('id', profile.id)
+    .maybeSingle()
+  const baseXp = (data as { xp?: number } | null)?.xp ?? profile.xp ?? 0
+  return upsertProfile(client, { id: profile.id, xp: baseXp + amount })
 }
