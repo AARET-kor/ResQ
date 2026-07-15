@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { LiquidGlass } from './LiquidGlass'
+import { SPECIALTIES } from '../mascot/roster'
 
 export interface OnboardingValues {
   hospital: string
@@ -10,9 +11,8 @@ export interface OnboardingValues {
   training_end: string
 }
 
-const FIELDS: { key: keyof Omit<OnboardingValues, 'pgy'>; label: string; type: string }[] = [
+const FIELDS: { key: 'hospital' | 'nickname' | 'training_start' | 'training_end'; label: string; type: string }[] = [
   { key: 'hospital', label: '병원', type: 'text' },
-  { key: 'specialty', label: '전공', type: 'text' },
   { key: 'nickname', label: '닉네임', type: 'text' },
   { key: 'training_start', label: '수련 시작일', type: 'date' },
   { key: 'training_end', label: '수련 종료일', type: 'date' },
@@ -27,14 +27,15 @@ export function Onboarding({
 }) {
   const [text, setText] = useState<Record<string, string>>({})
   const [pgy, setPgy] = useState('')
+  const [specialty, setSpecialty] = useState('')
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
-    const required = ['hospital', 'specialty', 'nickname', 'training_start', 'training_end']
-    if (required.some((k) => !text[k]) || !pgy) return
+    const required = ['hospital', 'nickname', 'training_start', 'training_end']
+    if (required.some((k) => !text[k]) || !specialty || !pgy) return
     onSubmit({
       hospital: text.hospital,
-      specialty: text.specialty,
+      specialty,
       pgy: Number(pgy),
       nickname: text.nickname,
       training_start: text.training_start,
@@ -59,6 +60,21 @@ export function Onboarding({
               />
             </label>
           ))}
+          <label className="flex flex-col gap-1 font-mono text-xs uppercase text-cream/80">
+            전공
+            <select
+              aria-label="전공"
+              value={specialty}
+              onChange={(e) => setSpecialty(e.target.value)}
+              className="rounded-md bg-white/5 px-3 py-2 font-mono text-sm text-cream outline-none focus:ring-1 focus:ring-neon [&>option]:bg-bg"
+            >
+              <option value="">선택하세요</option>
+              {SPECIALTIES.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+              <option value="기타">기타</option>
+            </select>
+          </label>
           <label className="flex flex-col gap-1 font-mono text-xs uppercase text-cream/80">
             연차
             <input

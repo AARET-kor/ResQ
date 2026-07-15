@@ -11,6 +11,10 @@ export interface Profile {
   xp: number
   mascot_level: number
   mascot_stage: number
+  mascot_species?: string | null
+  mascot_name?: string | null
+  last_active_on?: string | null // ISO date
+  streak_days?: number | null
 }
 
 export async function getProfile(client: SupabaseClient, userId: string): Promise<Profile | null> {

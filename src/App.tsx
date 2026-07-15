@@ -6,6 +6,7 @@ import { LoginScreen } from './components/LoginScreen'
 import { Onboarding, type OnboardingValues } from './components/Onboarding'
 import { Hero } from './components/Hero'
 import { TextureOverlay } from './components/TextureOverlay'
+import { useMascot } from './mascot/useMascot'
 
 export default function App() {
   const { session, loading, signIn, signOut } = useAuth()
@@ -47,10 +48,17 @@ export default function App() {
     }
   }
 
+  const mascot = useMascot(profile, setProfile)
+
   if (loading || (userId && !profileLoaded)) {
     return <div className="flex min-h-screen items-center justify-center font-mono text-sm uppercase text-cream/60">loading…</div>
   }
   if (!session) return (<><TextureOverlay /><LoginScreen onSignIn={signIn} /></>)
   if (!isProfileComplete(profile)) return (<><TextureOverlay /><Onboarding onSubmit={handleOnboard} error={onboardError} /></>)
-  return (<><TextureOverlay /><Hero profile={profile!} onSignOut={signOut} /></>)
+  return (
+    <>
+      <TextureOverlay />
+      <Hero profile={profile!} mascot={mascot} onSignOut={signOut} />
+    </>
+  )
 }
