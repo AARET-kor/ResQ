@@ -27,3 +27,14 @@
   mask-composite: exclude;
   pointer-events: none;
 }
+
+@keyframes qbi-float {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-14px) scale(1.02); }
+}
+.qbi-float {
+  animation: qbi-float 4.5s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .qbi-float { animation: none; }
+}

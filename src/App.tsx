@@ -7,7 +7,6 @@ import { Onboarding, type OnboardingValues } from './components/Onboarding'
 import { Hero } from './components/Hero'
 import { TextureOverlay } from './components/TextureOverlay'
 import { useMascot } from './mascot/useMascot'
-import { MascotZone } from './components/MascotZone'
 
 export default function App() {
   const { session, loading, signIn, signOut } = useAuth()
@@ -59,8 +58,7 @@ export default function App() {
   return (
     <>
       <TextureOverlay />
-      <Hero profile={profile!} onSignOut={signOut} />
-      {mascot && <MascotZone state={mascot} />}
+      <Hero profile={profile!} mascot={mascot} onSignOut={signOut} />
     </>
   )
 }
