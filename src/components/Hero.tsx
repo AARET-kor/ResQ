@@ -10,11 +10,11 @@ import type { Mood } from '../mascot/mood'
 import type { Profile } from '../lib/profile'
 
 const NAV = [
-  { label: '홈', active: true },
-  { label: '논문', active: true },
-  { label: '캘린더', active: false },
-  { label: '메일', active: false },
-  { label: '설정', active: true },
+  { label: '홈', href: '#', active: true },
+  { label: '논문', href: '#papers', active: true },
+  { label: '캘린더', href: '#schedule', active: true },
+  { label: '메일', href: '#', active: false },
+  { label: '설정', href: '#', active: true },
 ]
 
 const STAGES: Stage[] = ['INTERN', 'JUNIOR', 'SENIOR', 'CHIEF']
@@ -94,7 +94,7 @@ export function Hero({
                 {NAV.map((n) => (
                   <li key={n.label}>
                     <a
-                      href="#"
+                      href={n.href}
                       aria-disabled={!n.active}
                       className={`font-grotesk text-[13px] uppercase transition ${
                         n.active ? 'hover:text-neon' : 'cursor-not-allowed text-cream/40'

@@ -19,6 +19,8 @@ vi.mock('./lib/supabase', () => ({ supabase: {} }))
 
 vi.mock('./mascot/useMascot', () => ({ useMascot: () => null }))
 
+vi.mock('./home/HomeSections', () => ({ HomeSections: () => null }))
+
 import App from './App'
 import type { Profile } from './lib/profile'
 
