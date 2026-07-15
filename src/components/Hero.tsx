@@ -1,4 +1,4 @@
-import { useState, type MouseEvent } from 'react'
+import { useRef, useState, type MouseEvent } from 'react'
 import { Mail, Bird, Globe, ArrowLeft, ArrowRight } from 'lucide-react'
 import { LiquidGlass } from './LiquidGlass'
 import { computeDday } from '../lib/dday'
@@ -40,16 +40,20 @@ export function Hero({
   const phase = timeOfDayKST(now)
   const actualIndex = mascot ? STAGES.indexOf(mascot.stage) : 0
   const [preview, setPreview] = useState(actualIndex)
-  const [parallax, setParallax] = useState({ x: 0, y: 0 })
+  const stageRef = useRef<HTMLDivElement>(null)
   const previewStage = STAGES[preview]
   const pct = mascot && mascot.xpForLevel > 0 ? Math.round((mascot.xpInLevel / mascot.xpForLevel) * 100) : 0
 
+  // Parallax writes the transform directly on the stage element — no state,
+  // so mouse movement never re-renders the hero subtree. When mascot is null
+  // the stage isn't rendered and stageRef stays null (handler is a no-op).
   const onMouseMove = (e: MouseEvent<HTMLElement>) => {
+    const el = stageRef.current
+    if (!el) return
     const r = e.currentTarget.getBoundingClientRect()
-    setParallax({
-      x: ((e.clientX - r.left) / r.width - 0.5) * 16,
-      y: ((e.clientY - r.top) / r.height - 0.5) * 10,
-    })
+    const x = ((e.clientX - r.left) / r.width - 0.5) * 16
+    const y = ((e.clientY - r.top) / r.height - 0.5) * 10
+    el.style.transform = `translate(${x}px, ${y}px)`
   }
 
   return (
@@ -145,8 +149,9 @@ export function Hero({
               {mascot.speciesLabel}
             </span>
             <div
+              ref={stageRef}
               className="relative"
-              style={{ transform: `translate(${parallax.x}px, ${parallax.y}px)`, transition: 'transform 200ms ease-out' }}
+              style={{ transition: 'transform 200ms ease-out' }}
             >
               <div className="qbi-float text-[110px] leading-none drop-shadow-2xl sm:text-[170px]">
                 {mascotArt(mascot.speciesId, previewStage)}
