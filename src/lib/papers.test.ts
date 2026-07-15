@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { getAnalysis, saveAnalysis, requestAnalysis, type PaperAnalysis } from './papers'
 import type { Paper } from './pubmed'
 

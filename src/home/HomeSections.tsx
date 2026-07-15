@@ -12,10 +12,13 @@ import {
   setTeamTaskStatus, deleteTeamTask, type Team, type TeamTask, type TeamTaskStatus,
 } from '../lib/team'
 import { TeamSection } from '../components/sections/TeamSection'
+import { fetchRecentPapers, type Paper } from '../lib/pubmed'
+import { getAnalysis, requestAnalysis, saveAnalysis } from '../lib/papers'
+import { PapersSection } from '../components/sections/PapersSection'
 
 /**
- * Home scroll sections below the hero. Sections 2 (todos + schedule) and
- * 3 (team) are live; section 4 (papers) is an anchored placeholder for later slices.
+ * Home scroll sections below the hero. Section 2 (todos + schedule),
+ * section 3 (team), and section 4 (papers) are live.
  */
 export function HomeSections({
   profile,
@@ -141,6 +144,58 @@ export function HomeSections({
     catch (e) { console.error(e) }
   }
 
+  const [papers, setPapers] = useState<Paper[]>([])
+  const [papersLoading, setPapersLoading] = useState(false)
+  const [papersError, setPapersError] = useState<string | null>(null)
+  const [selectedPaper, setSelectedPaper] = useState<Paper | null>(null)
+  const [analysis, setAnalysis] = useState<string | null>(null)
+  const [analysisLoading, setAnalysisLoading] = useState(false)
+  const [analysisError, setAnalysisError] = useState<string | null>(null)
+
+  const handleRefreshPapers = async () => {
+    setPapersLoading(true)
+    setPapersError(null)
+    try {
+      setPapers(await fetchRecentPapers(profile.specialty))
+    } catch (e) {
+      console.error(e)
+      setPapersError('논문을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.')
+    } finally {
+      setPapersLoading(false)
+    }
+  }
+
+  const handleOpenPaper = async (p: Paper) => {
+    setSelectedPaper(p)
+    setAnalysis(null)
+    setAnalysisError(null)
+    setAnalysisLoading(true)
+    try {
+      const cached = await getAnalysis(supabase, userId, p.pmid)
+      if (cached) {
+        setAnalysis(cached.analysis)
+        return
+      }
+      if (!p.abstract) {
+        setAnalysisError('초록이 없는 논문은 분석할 수 없습니다. 원문 링크를 확인해주세요.')
+        return
+      }
+      const text = await requestAnalysis(supabase, p, profile.specialty)
+      await saveAnalysis(supabase, userId, p, text)
+      setAnalysis(text)
+      // First successful analysis of this paper → read_paper XP (+20).
+      const updated = await recordXpEvent(supabase, profile, 'read_paper')
+      onProfileChange(updated)
+    } catch (e) {
+      console.error(e)
+      setAnalysisError(e instanceof Error ? e.message : '분석에 실패했습니다.')
+    } finally {
+      setAnalysisLoading(false)
+    }
+  }
+
+  const handleClosePaper = () => { setSelectedPaper(null); setAnalysis(null); setAnalysisError(null) }
+
   return (
     <div className="mx-auto flex max-w-[1831px] flex-col gap-16 px-6 py-16 sm:px-10">
       {/* Section 2: todos + schedule */}
@@ -172,12 +227,23 @@ export function HomeSections({
         />
       </section>
 
-      {/* Section 4 placeholder: papers */}
+      {/* Section 4: papers */}
       <section id="papers" className="scroll-mt-8">
-        <h2 className="mb-4 font-grotesk text-3xl uppercase sm:text-5xl">
+        <h2 className="mb-6 font-grotesk text-3xl uppercase sm:text-5xl">
           논문 <span className="font-condiment normal-case text-neon">breakdown</span>
         </h2>
-        <p className="font-mono text-sm uppercase text-cream/40">곧 제공 — 전공 최신 논문 수집과 AI 분석 리포트가 여기에 들어옵니다.</p>
+        <PapersSection
+          papers={papers}
+          loading={papersLoading}
+          error={papersError}
+          onRefresh={handleRefreshPapers}
+          onOpen={handleOpenPaper}
+          selected={selectedPaper}
+          analysis={analysis}
+          analysisLoading={analysisLoading}
+          analysisError={analysisError}
+          onClose={handleClosePaper}
+        />
       </section>
     </div>
   )
