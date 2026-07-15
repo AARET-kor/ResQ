@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { upsertProfile, type Profile } from '../lib/profile'
-import { XP_AMOUNTS } from './events'
-import { prevDayISO } from './today'
+import { XP_AMOUNTS, type XpEventType } from './events'
+import { prevDayISO, todayISO } from './today'
 
 /** Grant daily-login XP once per calendar day; updates streak and appends to the ledger. */
 export async function recordDailyLogin(
@@ -26,4 +26,22 @@ export async function recordDailyLogin(
     last_active_on: todayISO,
     streak_days: streak,
   })
+}
+
+/**
+ * Generic XP grant for non-login events (schedule_done, read_paper, …).
+ * No per-day uniqueness — callers guard repetition themselves (e.g. a todo's
+ * xp_granted flag). `day` is recorded for consistency with the ledger schema.
+ */
+export async function recordXpEvent(
+  client: SupabaseClient,
+  profile: Profile,
+  type: Exclude<XpEventType, 'daily_login'>,
+): Promise<Profile> {
+  const amount = XP_AMOUNTS[type]
+  const { error } = await client
+    .from('xp_events')
+    .insert({ user_id: profile.id, type, amount, day: todayISO() })
+  if (error) return profile
+  return upsertProfile(client, { id: profile.id, xp: (profile.xp ?? 0) + amount })
 }

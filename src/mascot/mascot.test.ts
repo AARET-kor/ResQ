@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { recordDailyLogin } from './mascot'
+import { recordDailyLogin, recordXpEvent } from './mascot'
 import type { Profile } from '../lib/profile'
 
 function fakeClient(row: Profile, insertError: unknown = null) {
@@ -54,6 +54,22 @@ describe('recordDailyLogin', () => {
     const client = fakeClient(base, { code: '23505', message: 'duplicate key' })
     const p = await recordDailyLogin(client, base, '2026-07-14')
     expect(p.xp).toBe(40) // unchanged — no double grant
+    expect(p).toBe(base)
+  })
+})
+
+describe('recordXpEvent', () => {
+  it('appends a ledger row and bumps profile xp', async () => {
+    const client = fakeClient(base)
+    const p = await recordXpEvent(client, base, 'schedule_done')
+    expect(p.xp).toBe(48) // 40 + 8
+    expect(client.inserts).toEqual([
+      { table: 'xp_events', values: { user_id: 'u1', type: 'schedule_done', amount: 8, day: expect.any(String) } },
+    ])
+  })
+  it('does not bump xp when the ledger insert fails', async () => {
+    const client = fakeClient(base, { code: '500', message: 'boom' })
+    const p = await recordXpEvent(client, base, 'schedule_done')
     expect(p).toBe(base)
   })
 })
