@@ -7,10 +7,15 @@ import { monthRangeISO } from '../lib/calendar'
 import { recordXpEvent } from '../mascot/mascot'
 import { TodoSection } from '../components/sections/TodoSection'
 import { ScheduleSection } from '../components/sections/ScheduleSection'
+import {
+  myTeam, createTeam, joinTeamByCode, listTeamTasks, addTeamTask,
+  setTeamTaskStatus, deleteTeamTask, type Team, type TeamTask, type TeamTaskStatus,
+} from '../lib/team'
+import { TeamSection } from '../components/sections/TeamSection'
 
 /**
- * Home scroll sections below the hero. Section 2 (todos + schedule) is live;
- * sections 3 (team) and 4 (papers) are anchored placeholders for later slices.
+ * Home scroll sections below the hero. Sections 2 (todos + schedule) and
+ * 3 (team) are live; section 4 (papers) is an anchored placeholder for later slices.
  */
 export function HomeSections({
   profile,
@@ -42,6 +47,26 @@ export function HomeSections({
       .catch(console.error)
     return () => { active = false }
   }, [userId, year, month0])
+
+  const [team, setTeam] = useState<Team | null>(null)
+  const [teamTasks, setTeamTasks] = useState<TeamTask[]>([])
+
+  useEffect(() => {
+    let active = true
+    myTeam(supabase, userId)
+      .then((t) => { if (active) setTeam(t) })
+      .catch(console.error)
+    return () => { active = false }
+  }, [userId])
+
+  useEffect(() => {
+    if (!team) { setTeamTasks([]); return }
+    let active = true
+    listTeamTasks(supabase, team.id)
+      .then((t) => { if (active) setTeamTasks(t) })
+      .catch(console.error)
+    return () => { active = false }
+  }, [team])
 
   const handleAddTodo = async (title: string) => {
     try {
@@ -90,6 +115,32 @@ export function HomeSections({
 
   const handleMonthChange = (y: number, m0: number) => { setYear(y); setMonth0(m0) }
 
+  const handleCreateTeam = async (name: string) => {
+    try { setTeam(await createTeam(supabase, userId, name, profile.nickname)) }
+    catch (e) { console.error(e) }
+  }
+  const handleJoinTeam = async (code: string) => {
+    try {
+      await joinTeamByCode(supabase, code, profile.nickname)
+      setTeam(await myTeam(supabase, userId))
+    } catch (e) { console.error(e) }
+  }
+  const handleAddTeamTask = async (title: string) => {
+    if (!team) return
+    try { const t = await addTeamTask(supabase, team.id, userId, title, profile.nickname); setTeamTasks((s) => [...s, t]) }
+    catch (e) { console.error(e) }
+  }
+  const handleMoveTeamTask = async (task: TeamTask, status: TeamTaskStatus) => {
+    try {
+      const updated = await setTeamTaskStatus(supabase, task.id, status)
+      setTeamTasks((s) => s.map((t) => (t.id === task.id ? updated : t)))
+    } catch (e) { console.error(e) }
+  }
+  const handleDeleteTeamTask = async (id: string) => {
+    try { await deleteTeamTask(supabase, id); setTeamTasks((s) => s.filter((t) => t.id !== id)) }
+    catch (e) { console.error(e) }
+  }
+
   return (
     <div className="mx-auto flex max-w-[1831px] flex-col gap-16 px-6 py-16 sm:px-10">
       {/* Section 2: todos + schedule */}
@@ -104,12 +155,21 @@ export function HomeSections({
         </div>
       </section>
 
-      {/* Section 3 placeholder: team missions + conference calendar */}
+      {/* Section 3: team missions + conference calendar */}
       <section id="team" className="scroll-mt-8">
-        <h2 className="mb-4 font-grotesk text-3xl uppercase sm:text-5xl">
+        <h2 className="mb-6 font-grotesk text-3xl uppercase sm:text-5xl">
           팀 <span className="font-condiment normal-case text-neon">missions</span>
         </h2>
-        <p className="font-mono text-sm uppercase text-cream/40">곧 제공 — 1–4년차·교수님 공유 할일판과 학회 캘린더가 여기에 들어옵니다.</p>
+        <TeamSection
+          team={team}
+          tasks={teamTasks}
+          conferences={events.filter((e) => e.kind === 'conference')}
+          onCreate={handleCreateTeam}
+          onJoin={handleJoinTeam}
+          onAddTask={handleAddTeamTask}
+          onMove={handleMoveTeamTask}
+          onDeleteTask={handleDeleteTeamTask}
+        />
       </section>
 
       {/* Section 4 placeholder: papers */}
