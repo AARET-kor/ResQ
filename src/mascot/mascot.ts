@@ -1,18 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { upsertProfile, type Profile } from '../lib/profile'
-import { pickSpecies } from './species'
 import { XP_AMOUNTS } from './events'
 import { prevDayISO } from './today'
-
-/** Assign a random species on first hatch; no-op if one already exists. */
-export async function assignSpeciesIfMissing(
-  client: SupabaseClient,
-  profile: Profile,
-  rand: number,
-): Promise<Profile> {
-  if (profile.mascot_species) return profile
-  return upsertProfile(client, { id: profile.id, mascot_species: pickSpecies(rand) })
-}
 
 /** Grant daily-login XP once per calendar day; updates streak and appends to the ledger. */
 export async function recordDailyLogin(

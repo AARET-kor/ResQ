@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { assignSpeciesIfMissing, recordDailyLogin } from './mascot'
+import { recordDailyLogin } from './mascot'
 import type { Profile } from '../lib/profile'
 
 function fakeClient(row: Profile, insertError: unknown = null) {
@@ -25,18 +25,6 @@ const base: Profile = {
   xp: 40, mascot_level: 1, mascot_stage: 1,
   mascot_species: null, mascot_name: null, last_active_on: null, streak_days: 0,
 }
-
-describe('assignSpeciesIfMissing', () => {
-  it('assigns a species when none is set', async () => {
-    const p = await assignSpeciesIfMissing(fakeClient(base), base, 0)
-    expect(p.mascot_species).toBeTruthy()
-  })
-  it('leaves an existing species untouched', async () => {
-    const withSpecies = { ...base, mascot_species: 'bear' }
-    const p = await assignSpeciesIfMissing(fakeClient(withSpecies), withSpecies, 0.99)
-    expect(p.mascot_species).toBe('bear')
-  })
-})
 
 describe('recordDailyLogin', () => {
   it('grants +10 XP and records the event on a new day', async () => {

@@ -5,7 +5,8 @@ import { MascotZone } from './MascotZone'
 import type { MascotState } from '../mascot/state'
 
 const state: MascotState = {
-  speciesId: 'frog', speciesLabel: '개구리', tint: '#22c55e', name: '큐비',
+  speciesId: 'frog', speciesLabel: '개구리', tint: '#22c55e',
+  variantLabel: '씩씩이', variantAccent: '#ff6b6b', name: '큐비',
   stage: 'SENIOR', mood: 'ENERGIZED', level: 2, xpInLevel: 50, xpForLevel: 200, streakDays: 3,
 }
 

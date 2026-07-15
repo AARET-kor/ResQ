@@ -1,18 +1,17 @@
 import { useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import type { Profile } from '../lib/profile'
-import { assignSpeciesIfMissing, recordDailyLogin } from './mascot'
+import { recordDailyLogin } from './mascot'
 import { deriveMascotState, type MascotState } from './state'
 import { todayISO } from './today'
 
 /**
- * Ensures the user has a hatched species and records the once-per-day login,
- * pushing the updated profile back up via onProfileChange. Returns the derived
- * MascotState for rendering (null until a species exists).
+ * Records the once-per-day login (XP/streak) and returns the derived
+ * MascotState (species from specialty, variant from user-id hash).
  *
- * Runs the side effect exactly ONCE per user id: `ranFor` survives React
+ * The side effect runs exactly ONCE per user id: `ranFor` survives React
  * StrictMode's mount→cleanup→mount so the ledger isn't double-written in dev,
- * and the result is only applied if the user hasn't changed since (`currentUser`).
+ * and the result is only applied if the user hasn't changed since.
  */
 export function useMascot(
   profile: Profile | null,
@@ -27,18 +26,18 @@ export function useMascot(
     if (!profile || !userId) return
     if (ranFor.current === userId) return
     ranFor.current = userId
-    ;(async () => {
-      let p = await assignSpeciesIfMissing(supabase, profile, Math.random())
-      p = await recordDailyLogin(supabase, p, todayISO())
-      if (currentUser.current === userId) onProfileChange(p)
-    })().catch((e) => {
-      console.error(e)
-      if (ranFor.current === userId) ranFor.current = null // allow a retry next mount
-    })
+    recordDailyLogin(supabase, profile, todayISO())
+      .then((p) => {
+        if (currentUser.current === userId) onProfileChange(p)
+      })
+      .catch((e) => {
+        console.error(e)
+        if (ranFor.current === userId) ranFor.current = null // allow retry next mount
+      })
     // Runs once per user id; profile/onProfileChange identity intentionally excluded.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId])
 
-  if (!profile || !profile.mascot_species) return null
+  if (!profile) return null
   return deriveMascotState(profile, todayISO())
 }
