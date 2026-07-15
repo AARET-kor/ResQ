@@ -54,8 +54,24 @@ export const SPECIALTY_ANIMALS: Record<string, string> = {
 /** Onboarding select options (mapped specialties, in declaration order). */
 export const SPECIALTIES = Object.keys(SPECIALTY_ANIMALS)
 
+/** Common short/legacy names → official specialty (covers free-text profiles). */
+const SPECIALTY_ALIASES: Record<string, string> = {
+  마취과: '마취통증의학과',
+  정신과: '정신건강의학과',
+  소아과: '소아청소년과',
+  비뇨기과: '비뇨의학과',
+  응급실: '응급의학과',
+}
+
+/** Resolve aliases/legacy free-text to the official specialty name. */
+export function canonicalSpecialty(specialty: string | null | undefined): string {
+  if (!specialty) return ''
+  const s = specialty.trim()
+  return SPECIALTY_ALIASES[s] ?? s
+}
+
 export function animalForSpecialty(specialty: string | null | undefined): Animal {
-  const id = (specialty && SPECIALTY_ANIMALS[specialty]) || DEFAULT_ANIMAL_ID
+  const id = SPECIALTY_ANIMALS[canonicalSpecialty(specialty)] ?? DEFAULT_ANIMAL_ID
   return animalById(id)!
 }
 

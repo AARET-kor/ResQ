@@ -1,3 +1,5 @@
+import { canonicalSpecialty } from '../mascot/roster'
+
 export interface Paper {
   pmid: string
   title: string
@@ -28,7 +30,7 @@ const SPECIALTY_QUERY: Record<string, string> = {
 }
 
 export function pubmedQueryFor(specialty: string | null | undefined): string {
-  return SPECIALTY_QUERY[specialty ?? ''] ?? 'medicine'
+  return SPECIALTY_QUERY[canonicalSpecialty(specialty)] ?? 'medicine'
 }
 
 const EUTILS = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils'

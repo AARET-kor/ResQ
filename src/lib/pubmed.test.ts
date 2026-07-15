@@ -27,6 +27,7 @@ const XML = `<?xml version="1.0"?>
 describe('pubmedQueryFor', () => {
   it('maps specialties to English queries with a generic fallback', () => {
     expect(pubmedQueryFor('내과')).toContain('internal medicine')
+    expect(pubmedQueryFor('마취과')).toContain('anesthesiology') // legacy alias
     expect(pubmedQueryFor('정형외과')).toContain('orthopedic')
     expect(pubmedQueryFor('우주과')).toContain('medicine')
     expect(pubmedQueryFor(null)).toContain('medicine')

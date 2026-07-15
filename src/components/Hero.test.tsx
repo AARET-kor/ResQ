@@ -11,9 +11,10 @@ const profile: Profile = {
   xp: 150, mascot_level: 1, mascot_stage: 1,
   mascot_species: null, mascot_name: null, last_active_on: '2028-02-18', streak_days: 3,
 }
+// At 2028-02-18 training is ~99% done → stage CHIEF, mood ENERGIZED, level 2.
 const mascot = deriveMascotState(profile, '2028-02-18')
 
-describe('Hero (mascot stage)', () => {
+describe('Hero (figurine carousel)', () => {
   it('keeps nav, greeting and D-day', () => {
     render(<Hero profile={profile} mascot={mascot} onSignOut={() => {}} now={new Date('2028-02-18')} />)
     expect(screen.getByText('ResQ')).toBeInTheDocument()
@@ -21,25 +22,37 @@ describe('Hero (mascot stage)', () => {
     expect(screen.getByText(/길동/)).toBeInTheDocument()
     expect(screen.getByText('D-10')).toBeInTheDocument()
   })
-  it('renders the mascot with variant and stat bar', () => {
+
+  it('renders all four stage figurines with the current stage centered', () => {
+    render(<Hero profile={profile} mascot={mascot} onSignOut={() => {}} now={new Date('2028-02-18')} />)
+    const imgs = screen.getAllByRole('img')
+    expect(imgs).toHaveLength(4)
+    for (const img of imgs) {
+      expect(img).toHaveAttribute('src', expect.stringMatching(/^https:\/\//))
+    }
+    expect(screen.getByText('치프 스테이지')).toBeInTheDocument() // active = actual stage
+  })
+
+  it('renders the stat bar with variant, level and streak', () => {
     render(<Hero profile={profile} mascot={mascot} onSignOut={() => {}} now={new Date('2028-02-18')} />)
     expect(screen.getByText(/큐비/)).toBeInTheDocument()
     expect(screen.getByText(/Lv\.\s*2/)).toBeInTheDocument()
-    // ghost background label also renders speciesLabel alone (aria-hidden), so
-    // assert the stat bar's combined "variant species" text to disambiguate.
-    expect(
-      screen.getByText(new RegExp(`${mascot.variantLabel}\\s+${mascot.speciesLabel}`)),
-    ).toBeInTheDocument()
+    expect(screen.getByText(new RegExp(`${mascot.variantLabel} ${mascot.speciesLabel}`))).toBeInTheDocument()
+    expect(screen.getByText('현재 치프')).toBeInTheDocument()
+    expect(screen.getByText(/3일 연속/)).toBeInTheDocument()
   })
-  it('previews other stages without changing the actual stage', async () => {
+
+  it('rotates the carousel with the arrows without changing the actual stage', async () => {
     render(<Hero profile={profile} mascot={mascot} onSignOut={() => {}} now={new Date('2028-02-18')} />)
-    await userEvent.click(screen.getByRole('button', { name: /다음 단계/ }))
-    // actual stage text still shown in stat bar (mascot.stage = CHIEF at 2028-02-18)
-    expect(screen.getByText(new RegExp(`현재`))).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '다음 단계' }))
+    expect(screen.getByText('인턴 스테이지')).toBeInTheDocument() // CHIEF → wraps to INTERN
+    expect(screen.getByText('현재 치프')).toBeInTheDocument()     // actual stage unchanged
   })
-  it('renders without a stat bar when mascot is null', () => {
+
+  it('renders without carousel or stat bar when mascot is null', () => {
     render(<Hero profile={profile} mascot={null} onSignOut={() => {}} now={new Date('2028-02-18')} />)
     expect(screen.getByText(/길동/)).toBeInTheDocument()
     expect(screen.queryByText(/큐비/)).not.toBeInTheDocument()
+    expect(screen.queryAllByRole('img')).toHaveLength(0)
   })
 })

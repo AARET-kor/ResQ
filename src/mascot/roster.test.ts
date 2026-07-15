@@ -18,6 +18,13 @@ describe('specialty → animal mapping', () => {
     expect(animalForSpecialty(null).id).toBe('alpaca')
     expect(animalForSpecialty(undefined).id).toBe('alpaca')
   })
+  it('resolves common short/legacy names via aliases', () => {
+    expect(animalForSpecialty('마취과').id).toBe('chameleon')
+    expect(animalForSpecialty('정신과').id).toBe('cat')
+    expect(animalForSpecialty('소아과').id).toBe('rabbit')
+    expect(animalForSpecialty('비뇨기과').id).toBe('pig')
+    expect(animalForSpecialty(' 마취과 ').id).toBe('chameleon') // trims whitespace
+  })
   it('every mapped specialty resolves to a real animal with label/tint/glyph', () => {
     for (const s of SPECIALTIES) {
       const a = animalForSpecialty(s)
