@@ -19,6 +19,7 @@ export interface EventItem {
   kind: EventKind
   location: string | null
   notes: string | null
+  gcal_id?: string | null
 }
 
 export async function listEventsInRange(

@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../auth/AuthProvider'
 import type { Profile } from '../lib/profile'
 import { listTodos, addTodo, setTodoDone, deleteTodo, type Todo } from '../lib/todos'
 import { listEventsInRange, addEvent, deleteEvent, type EventItem, type EventKind } from '../lib/events'
 import { monthRangeISO } from '../lib/calendar'
+import { buildICS } from '../lib/ics'
+import { insertGoogleEvent, markEventSynced, GOOGLE_AUTH_ERROR } from '../lib/gcal'
+import { listRecentEmailTexts, requestEventExtraction, type ExtractedEvent } from '../lib/gmail'
 import { recordXpEvent } from '../mascot/mascot'
 import { TodoSection } from '../components/sections/TodoSection'
 import { ScheduleSection } from '../components/sections/ScheduleSection'
+import { SyncPanel } from '../components/sections/SyncPanel'
 import {
   myTeam, createTeam, joinTeamByCode, listTeamTasks, addTeamTask,
   setTeamTaskStatus, deleteTeamTask, type Team, type TeamTask, type TeamTaskStatus,
@@ -29,10 +34,14 @@ export function HomeSections({
   onProfileChange: (p: Profile) => void
 }) {
   const now = new Date()
+  const { providerToken } = useAuth()
   const [todos, setTodos] = useState<Todo[]>([])
   const [events, setEvents] = useState<EventItem[]>([])
   const [year, setYear] = useState(now.getFullYear())
   const [month0, setMonth0] = useState(now.getMonth())
+  const [syncMessage, setSyncMessage] = useState<string | null>(null)
+  const [scanning, setScanning] = useState(false)
+  const [extracted, setExtracted] = useState<ExtractedEvent[]>([])
   const userId = profile.id
 
   useEffect(() => {
@@ -119,6 +128,63 @@ export function HomeSections({
   }
 
   const handleMonthChange = (y: number, m0: number) => { setYear(y); setMonth0(m0) }
+
+  const handleSyncMonth = async () => {
+    if (!providerToken) return
+    setSyncMessage('동기화 중…')
+    let ok = 0, failed = 0
+    for (const e of events.filter((e) => !e.gcal_id)) {
+      try {
+        const gid = await insertGoogleEvent(providerToken, e)
+        await markEventSynced(supabase, e.id, gid)
+        e.gcal_id = gid
+        ok++
+      } catch (err) {
+        failed++
+        if (err instanceof Error && err.message === GOOGLE_AUTH_ERROR) { setSyncMessage(GOOGLE_AUTH_ERROR); return }
+      }
+    }
+    setEvents((s) => [...s])
+    setSyncMessage(failed ? `${ok}건 동기화, ${failed}건 실패` : ok ? `${ok}건 동기화 완료` : '이번 달에 새로 보낼 일정이 없습니다')
+  }
+
+  const handleDownloadIcs = () => {
+    const ics = buildICS(events, todos)
+    const a = document.createElement('a')
+    a.href = `data:text/calendar;charset=utf-8,${encodeURIComponent(ics)}`
+    a.download = 'resq.ics'
+    a.click()
+  }
+
+  const feedUrl = profile.ics_token
+    ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/calendar-feed?token=${profile.ics_token}`
+    : null
+
+  const handleScanGmail = async () => {
+    if (!providerToken) return
+    setScanning(true)
+    setSyncMessage(null)
+    try {
+      const emails = await listRecentEmailTexts(providerToken)
+      if (emails.length === 0) { setSyncMessage('최근 2주 메일에서 일정 후보를 찾지 못했습니다'); return }
+      const found = await requestEventExtraction(supabase, emails, profile.specialty)
+      setExtracted(found)
+      if (found.length === 0) setSyncMessage('메일에서 일정을 찾지 못했습니다')
+    } catch (e) {
+      console.error(e)
+      setSyncMessage(e instanceof Error ? e.message : '메일 스캔에 실패했습니다')
+    } finally {
+      setScanning(false)
+    }
+  }
+
+  const handleAddExtracted = async (ev: ExtractedEvent) => {
+    try {
+      await handleAddEvent({ title: ev.title, starts_at: ev.starts_at, kind: ev.kind })
+      setExtracted((s) => s.filter((x) => x !== ev))
+      setSyncMessage(`'${ev.title}' 일정을 추가했습니다`)
+    } catch (e) { console.error(e) }
+  }
 
   const handleCreateTeam = async (name: string) => {
     try { setTeam(await createTeam(supabase, userId, name, profile.nickname)) }
@@ -276,6 +342,20 @@ export function HomeSections({
           <TodoSection todos={todos} onAdd={handleAddTodo} onToggle={handleToggleTodo} onDelete={handleDeleteTodo} />
           <ScheduleSection events={events} year={year} month0={month0}
             onMonthChange={handleMonthChange} onAdd={handleAddEvent} onDelete={handleDeleteEvent} />
+        </div>
+        <div className="mt-6">
+          <SyncPanel
+            googleConnected={!!providerToken}
+            onSyncMonth={handleSyncMonth}
+            syncMessage={syncMessage}
+            onDownloadIcs={handleDownloadIcs}
+            feedUrl={feedUrl}
+            onScanGmail={handleScanGmail}
+            scanning={scanning}
+            extracted={extracted}
+            onAddExtracted={handleAddExtracted}
+            onDismissExtracted={() => setExtracted([])}
+          />
         </div>
       </section>
 
