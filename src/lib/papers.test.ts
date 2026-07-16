@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { getAnalysis, saveAnalysis, requestAnalysis, type PaperAnalysis } from './papers'
+import { getAnalysis, saveAnalysis, requestAnalysis, requestReport, listMyReports, type PaperAnalysis } from './papers'
 import type { Paper } from './pubmed'
 
 const paper: Paper = {
-  pmid: '111', title: 'T', journal: 'J', year: '2026', abstract: 'A', url: 'https://pubmed.ncbi.nlm.nih.gov/111/',
+  pmid: '111', title: 'T', journal: 'J', year: '2026', abstract: 'A', url: 'https://pubmed.ncbi.nlm.nih.gov/111/', pmcid: null,
 }
 
 function fakeClient(row: PaperAnalysis | null, invokeResult: any = { data: { analysis: '분석' }, error: null }) {
@@ -48,5 +48,45 @@ describe('papers data access', () => {
     expect(row.analysis).toBe('분석 결과')
     expect(c.calls[0].args.user_id).toBe('u1')
     expect(c.calls[0].args.pmid).toBe('111')
+  })
+})
+
+function fakeClientList(rows: any[]) {
+  return {
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          order: () => Promise.resolve({ data: rows, error: null }),
+        }),
+      }),
+    }),
+  } as any
+}
+
+describe('papers v2', () => {
+  it('requestReport sends report mode with fulltext', async () => {
+    const c = fakeClient(null, { data: { analysis: '## 요약' }, error: null })
+    const text = await requestReport(c, paper, '성형외과', { fulltext: 'BODY TEXT' })
+    expect(text).toBe('## 요약')
+    expect(c.calls[0].args.mode).toBe('report')
+    expect(c.calls[0].args.fulltext).toBe('BODY TEXT')
+  })
+  it('requestReport sends pdf payloads', async () => {
+    const c = fakeClient(null)
+    await requestReport(c, paper, '성형외과', { pdfBase64: 'QUJD' })
+    expect(c.calls[0].args.pdfBase64).toBe('QUJD')
+  })
+  it('saveAnalysis persists kind, fulltext flag and source', async () => {
+    const c = fakeClient(null)
+    const row = await saveAnalysis(c, 'u1', paper, '리포트', { kind: 'report', hasFulltext: true, source: 'Arch Plast Surg' })
+    expect(c.calls[0].args.kind).toBe('report')
+    expect(c.calls[0].args.has_fulltext).toBe(true)
+    expect(c.calls[0].args.source).toBe('Arch Plast Surg')
+    expect(row.analysis).toBe('리포트')
+  })
+  it('listMyReports queries the user library', async () => {
+    const rows = [{ id: 'pa1', pmid: '111', title: 'T', analysis: 'A', kind: 'report' }]
+    const c = fakeClientList(rows as any)
+    expect(await listMyReports(c, 'u1')).toHaveLength(1)
   })
 })
