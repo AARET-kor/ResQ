@@ -12,8 +12,9 @@ import {
   setTeamTaskStatus, deleteTeamTask, type Team, type TeamTask, type TeamTaskStatus,
 } from '../lib/team'
 import { TeamSection } from '../components/sections/TeamSection'
-import { fetchRecentPapers, type Paper } from '../lib/pubmed'
-import { getAnalysis, requestAnalysis, saveAnalysis } from '../lib/papers'
+import { fetchRecentPapers, fetchPmcFullText, type Paper } from '../lib/pubmed'
+import { getAnalysis, requestAnalysis, requestReport, saveAnalysis, listMyReports, type PaperAnalysis } from '../lib/papers'
+import { journalsFor } from '../lib/sources'
 import { PapersSection } from '../components/sections/PapersSection'
 
 /**
@@ -152,12 +153,29 @@ export function HomeSections({
   const [analysis, setAnalysis] = useState<string | null>(null)
   const [analysisLoading, setAnalysisLoading] = useState(false)
   const [analysisError, setAnalysisError] = useState<string | null>(null)
+  const [paperDays, setPaperDays] = useState<7 | 30>(7)
+  const [selectedJournals, setSelectedJournals] = useState<string[]>([])
+  const [reports, setReports] = useState<PaperAnalysis[]>([])
+  const [selectedTitle, setSelectedTitle] = useState<string | null>(null)
+  const [analysisKind, setAnalysisKind] = useState<'abstract' | 'report' | null>(null)
+
+  useEffect(() => {
+    let active = true
+    listMyReports(supabase, userId).then((r) => { if (active) setReports(r) }).catch(console.error)
+    return () => { active = false }
+  }, [userId])
+
+  const journals = journalsFor(profile.specialty)
+
+  const handleToggleJournal = (id: string) =>
+    setSelectedJournals((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
 
   const handleRefreshPapers = async () => {
     setPapersLoading(true)
     setPapersError(null)
     try {
-      setPapers(await fetchRecentPapers(profile.specialty))
+      const tas = journals.filter((j) => selectedJournals.includes(j.id)).map((j) => j.ta)
+      setPapers(await fetchRecentPapers(profile.specialty, fetch, { days: paperDays, tas, retmax: 12 }))
     } catch (e) {
       console.error(e)
       setPapersError('논문을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.')
@@ -166,27 +184,38 @@ export function HomeSections({
     }
   }
 
+  const refreshReports = () =>
+    listMyReports(supabase, userId).then(setReports).catch(console.error)
+
   const handleOpenPaper = async (p: Paper) => {
     setSelectedPaper(p)
-    setAnalysis(null)
-    setAnalysisError(null)
-    setAnalysisLoading(true)
+    setSelectedTitle(p.title)
+    setAnalysis(null); setAnalysisKind(null); setAnalysisError(null); setAnalysisLoading(true)
     try {
       const cached = await getAnalysis(supabase, userId, p.pmid)
-      if (cached) {
-        setAnalysis(cached.analysis)
-        return
+      if (cached) { setAnalysis(cached.analysis); setAnalysisKind((cached.kind as any) ?? 'abstract'); return }
+      let text: string
+      let kind: 'abstract' | 'report' = 'abstract'
+      let hasFulltext = false
+      if (p.pmcid) {
+        const body = await fetchPmcFullText(p.pmcid).catch(() => '')
+        if (body) {
+          text = await requestReport(supabase, p, profile.specialty, { fulltext: body })
+          kind = 'report'; hasFulltext = true
+        } else {
+          if (!p.abstract) { setAnalysisError('초록이 없는 논문은 분석할 수 없습니다.'); return }
+          text = await requestAnalysis(supabase, p, profile.specialty)
+        }
+      } else {
+        if (!p.abstract) { setAnalysisError('초록이 없는 논문은 분석할 수 없습니다. 원문 링크를 확인해주세요.'); return }
+        text = await requestAnalysis(supabase, p, profile.specialty)
       }
-      if (!p.abstract) {
-        setAnalysisError('초록이 없는 논문은 분석할 수 없습니다. 원문 링크를 확인해주세요.')
-        return
-      }
-      const text = await requestAnalysis(supabase, p, profile.specialty)
-      await saveAnalysis(supabase, userId, p, text)
-      setAnalysis(text)
+      await saveAnalysis(supabase, userId, p, text, { kind, hasFulltext, source: p.journal || null })
+      setAnalysis(text); setAnalysisKind(kind)
       // First successful analysis of this paper → read_paper XP (+20).
       const updated = await recordXpEvent(supabase, profile, 'read_paper')
       onProfileChange(updated)
+      refreshReports()
     } catch (e) {
       console.error(e)
       setAnalysisError(e instanceof Error ? e.message : '분석에 실패했습니다.')
@@ -195,7 +224,46 @@ export function HomeSections({
     }
   }
 
-  const handleClosePaper = () => { setSelectedPaper(null); setAnalysis(null); setAnalysisError(null) }
+  const handleUploadPdf = async (file: File) => {
+    const surrogate: Paper = {
+      pmid: `pdf-${Date.now()}`, title: file.name.replace(/\.pdf$/i, ''), journal: 'PDF 업로드',
+      year: '', abstract: '', url: '', pmcid: null,
+    }
+    setSelectedPaper(surrogate)
+    setSelectedTitle(surrogate.title)
+    setAnalysis(null); setAnalysisKind(null); setAnalysisError(null); setAnalysisLoading(true)
+    try {
+      const buf = await file.arrayBuffer()
+      let binary = ''
+      const bytes = new Uint8Array(buf)
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
+      const pdfBase64 = btoa(binary)
+      const text = await requestReport(supabase, surrogate, profile.specialty, { pdfBase64 })
+      await saveAnalysis(supabase, userId, surrogate, text, { kind: 'report', hasFulltext: true, source: 'pdf' })
+      setAnalysis(text); setAnalysisKind('report')
+      const updated = await recordXpEvent(supabase, profile, 'read_paper')
+      onProfileChange(updated)
+      refreshReports()
+    } catch (e) {
+      console.error(e)
+      setAnalysisError(e instanceof Error ? e.message : 'PDF 분석에 실패했습니다.')
+    } finally {
+      setAnalysisLoading(false)
+    }
+  }
+
+  const handleOpenReport = (r: PaperAnalysis) => {
+    setSelectedPaper({ pmid: r.pmid, title: r.title, journal: r.journal ?? '', year: r.year ?? '', abstract: r.abstract ?? '', url: r.pmid.startsWith('pdf-') ? '' : `https://pubmed.ncbi.nlm.nih.gov/${r.pmid}/`, pmcid: null })
+    setSelectedTitle(r.title)
+    setAnalysis(r.analysis)
+    setAnalysisKind(((r as any).kind as any) ?? 'abstract')
+    setAnalysisError(null)
+  }
+
+  const handleClosePaper = () => {
+    setSelectedPaper(null); setAnalysis(null); setAnalysisError(null)
+    setSelectedTitle(null); setAnalysisKind(null)
+  }
 
   return (
     <div className="mx-auto flex max-w-[1831px] flex-col gap-16 px-6 py-16 sm:px-10">
@@ -237,10 +305,20 @@ export function HomeSections({
           papers={papers}
           loading={papersLoading}
           error={papersError}
+          journals={journals}
+          selectedJournals={selectedJournals}
+          onToggleJournal={handleToggleJournal}
+          days={paperDays}
+          onDaysChange={setPaperDays}
           onRefresh={handleRefreshPapers}
           onOpen={handleOpenPaper}
+          onUploadPdf={handleUploadPdf}
+          reports={reports}
+          onOpenReport={handleOpenReport}
           selected={selectedPaper}
+          selectedTitle={selectedTitle}
           analysis={analysis}
+          analysisKind={analysisKind}
           analysisLoading={analysisLoading}
           analysisError={analysisError}
           onClose={handleClosePaper}
