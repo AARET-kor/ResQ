@@ -7,6 +7,7 @@ export interface Paper {
   year: string
   abstract: string
   url: string
+  pmcid: string | null
 }
 
 /** 전공 → PubMed 검색어 (config). Unmapped → generic medicine. */
@@ -44,6 +45,10 @@ export function parsePubmedArticles(xml: string): Paper[] {
       .map((n) => n.textContent?.trim() ?? '')
       .filter(Boolean)
       .join(' ')
+    const pmcid =
+      Array.from(a.querySelectorAll('ArticleId'))
+        .find((n) => n.getAttribute('IdType') === 'pmc')
+        ?.textContent?.trim() ?? null
     return {
       pmid,
       title: a.querySelector('ArticleTitle')?.textContent ?? '(제목 없음)',
@@ -51,20 +56,31 @@ export function parsePubmedArticles(xml: string): Paper[] {
       year: a.querySelector('PubDate > Year')?.textContent ?? '',
       abstract,
       url: `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`,
+      pmcid,
     }
   })
+}
+
+export interface FetchOptions {
+  retmax?: number
+  days?: number          // reldate window (e.g. 7 or 30)
+  tas?: string[]         // journal [ta] filters; overrides the specialty term
 }
 
 /** Latest N papers for a specialty via E-utilities (CORS-enabled by NCBI). */
 export async function fetchRecentPapers(
   specialty: string | null | undefined,
   fetcher: typeof fetch = fetch,
-  retmax = 9,
+  opts: FetchOptions = {},
 ): Promise<Paper[]> {
-  const term = pubmedQueryFor(specialty)
-  const searchUrl =
+  const { retmax = 9, days, tas } = opts
+  const term = tas && tas.length > 0
+    ? `(${tas.map((t) => `"${t}"[ta]`).join(' OR ')})`
+    : pubmedQueryFor(specialty)
+  let searchUrl =
     `${EUTILS}/esearch.fcgi?db=pubmed&retmode=json&sort=pub_date&retmax=${retmax}` +
     `&term=${encodeURIComponent(term)}`
+  if (days) searchUrl += `&reldate=${days}&datetype=pdat`
   const sRes = await fetcher(searchUrl)
   if (!sRes.ok) throw new Error(`pubmed esearch failed: ${(sRes as Response).status}`)
   const sJson = await sRes.json()
@@ -74,4 +90,20 @@ export async function fetchRecentPapers(
   const fRes = await fetcher(fetchUrl)
   if (!fRes.ok) throw new Error(`pubmed efetch failed: ${(fRes as Response).status}`)
   return parsePubmedArticles(await fRes.text())
+}
+
+/** Open-access full text from PMC (empty string when no body is available). */
+export async function fetchPmcFullText(pmcid: string, fetcher: typeof fetch = fetch): Promise<string> {
+  const res = await fetcher(`${EUTILS}/efetch.fcgi?db=pmc&retmode=xml&id=${encodeURIComponent(pmcid)}`)
+  if (!res.ok) throw new Error(`pmc efetch failed: ${(res as Response).status}`)
+  const doc = new DOMParser().parseFromString(await res.text(), 'text/xml')
+  const body = doc.querySelector('body')
+  if (!body) return ''
+  const parts: string[] = []
+  body.querySelectorAll('title, p').forEach((n) => {
+    const t = n.textContent?.trim()
+    if (t) parts.push(t)
+  })
+  // Cap for prompt budget; reports don't need references/appendices tails.
+  return parts.join('\n\n').slice(0, 60_000)
 }
