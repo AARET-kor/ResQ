@@ -7,6 +7,8 @@ interface AuthState {
   loading: boolean
   signIn: () => Promise<void>
   signOut: () => Promise<void>
+  /** Google OAuth access token from the current session (null when absent/expired). */
+  providerToken: string | null
 }
 
 const AuthContext = createContext<AuthState | undefined>(undefined)
@@ -29,15 +31,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async () => {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin },
+      options: {
+        redirectTo: window.location.origin,
+        scopes: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/gmail.readonly',
+        queryParams: { access_type: 'offline', prompt: 'consent' },
+      },
     })
   }
   const signOut = async () => {
     await supabase.auth.signOut()
   }
 
+  const providerToken = ((session as unknown as { provider_token?: string })?.provider_token) ?? null
+
   return (
-    <AuthContext.Provider value={{ session, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ session, loading, signIn, signOut, providerToken }}>
       {children}
     </AuthContext.Provider>
   )

@@ -15,6 +15,7 @@ export interface Profile {
   mascot_name?: string | null
   last_active_on?: string | null // ISO date
   streak_days?: number | null
+  ics_token?: string | null
 }
 
 export async function getProfile(client: SupabaseClient, userId: string): Promise<Profile | null> {
