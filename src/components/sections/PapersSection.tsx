@@ -185,10 +185,12 @@ export function PapersSection({
                   리포트 다운로드 (.md)
                 </a>
               )}
-              <a href={selected.url} target="_blank" rel="noreferrer"
-                className="font-mono text-[10px] uppercase text-cream/50 underline transition hover:text-neon">
-                PubMed에서 원문 보기
-              </a>
+              {selected.url && (
+                <a href={selected.url} target="_blank" rel="noreferrer"
+                  className="font-mono text-[10px] uppercase text-cream/50 underline transition hover:text-neon">
+                  PubMed에서 원문 보기
+                </a>
+              )}
             </div>
           </LiquidGlass>
         </div>
