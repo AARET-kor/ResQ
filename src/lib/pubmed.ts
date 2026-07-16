@@ -14,6 +14,7 @@ const SPECIALTY_QUERY: Record<string, string> = {
   내과: 'internal medicine',
   정형외과: 'orthopedic surgery',
   외과: 'general surgery',
+  성형외과: 'plastic reconstructive surgery',
   마취통증의학과: 'anesthesiology OR pain medicine',
   소아청소년과: 'pediatrics',
   산부인과: 'obstetrics gynecology',

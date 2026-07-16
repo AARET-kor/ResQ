@@ -22,6 +22,7 @@ export const ANIMALS: Animal[] = [
   { id: 'sheep', label: '양', glyph: '🐑', tint: '#cbd5e1' },
   { id: 'pig', label: '돼지', glyph: '🐷', tint: '#f472b6' },
   { id: 'bear', label: '곰', glyph: '🐻', tint: '#92400e' },
+  { id: 'peacock', label: '공작', glyph: '🦚', tint: '#22d3ee' },
   { id: 'alpaca', label: '알파카', glyph: '🦙', tint: '#eab308' },
 ]
 
@@ -36,6 +37,7 @@ export const SPECIALTY_ANIMALS: Record<string, string> = {
   내과: 'dog',
   정형외과: 'cow',
   외과: 'horse',
+  성형외과: 'peacock',
   마취통증의학과: 'chameleon',
   소아청소년과: 'rabbit',
   산부인과: 'rooster',

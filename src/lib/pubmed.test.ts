@@ -29,6 +29,7 @@ describe('pubmedQueryFor', () => {
     expect(pubmedQueryFor('내과')).toContain('internal medicine')
     expect(pubmedQueryFor('마취과')).toContain('anesthesiology') // legacy alias
     expect(pubmedQueryFor('정형외과')).toContain('orthopedic')
+    expect(pubmedQueryFor('성형외과')).toContain('plastic')
     expect(pubmedQueryFor('우주과')).toContain('medicine')
     expect(pubmedQueryFor(null)).toContain('medicine')
   })

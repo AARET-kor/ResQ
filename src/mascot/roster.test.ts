@@ -12,6 +12,7 @@ describe('specialty → animal mapping', () => {
     expect(animalForSpecialty('외과').id).toBe('horse')
     expect(animalForSpecialty('마취통증의학과').id).toBe('chameleon')
     expect(animalForSpecialty('응급의학과').id).toBe('tiger')
+    expect(animalForSpecialty('성형외과').id).toBe('peacock')
   })
   it('falls back to alpaca for unmapped/missing specialty', () => {
     expect(animalForSpecialty('우주의학과').id).toBe('alpaca')
