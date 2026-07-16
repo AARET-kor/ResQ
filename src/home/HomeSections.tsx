@@ -41,6 +41,7 @@ export function HomeSections({
   const [month0, setMonth0] = useState(now.getMonth())
   const [syncMessage, setSyncMessage] = useState<string | null>(null)
   const [scanning, setScanning] = useState(false)
+  const [syncing, setSyncing] = useState(false)
   const [extracted, setExtracted] = useState<ExtractedEvent[]>([])
   const userId = profile.id
 
@@ -130,22 +131,27 @@ export function HomeSections({
   const handleMonthChange = (y: number, m0: number) => { setYear(y); setMonth0(m0) }
 
   const handleSyncMonth = async () => {
-    if (!providerToken) return
+    if (!providerToken || syncing) return
+    setSyncing(true)
     setSyncMessage('동기화 중…')
     let ok = 0, failed = 0
-    for (const e of events.filter((e) => !e.gcal_id)) {
-      try {
-        const gid = await insertGoogleEvent(providerToken, e)
-        await markEventSynced(supabase, e.id, gid)
-        e.gcal_id = gid
-        ok++
-      } catch (err) {
-        failed++
-        if (err instanceof Error && err.message === GOOGLE_AUTH_ERROR) { setSyncMessage(GOOGLE_AUTH_ERROR); return }
+    try {
+      for (const e of events.filter((e) => !e.gcal_id)) {
+        try {
+          const gid = await insertGoogleEvent(providerToken, e)
+          await markEventSynced(supabase, e.id, gid)
+          // immutable update so React state never carries mutated objects
+          setEvents((s) => s.map((x) => (x.id === e.id ? { ...x, gcal_id: gid } : x)))
+          ok++
+        } catch (err) {
+          failed++
+          if (err instanceof Error && err.message === GOOGLE_AUTH_ERROR) { setSyncMessage(GOOGLE_AUTH_ERROR); return }
+        }
       }
+      setSyncMessage(failed ? `${ok}건 동기화, ${failed}건 실패` : ok ? `${ok}건 동기화 완료` : '이번 달에 새로 보낼 일정이 없습니다')
+    } finally {
+      setSyncing(false)
     }
-    setEvents((s) => [...s])
-    setSyncMessage(failed ? `${ok}건 동기화, ${failed}건 실패` : ok ? `${ok}건 동기화 완료` : '이번 달에 새로 보낼 일정이 없습니다')
   }
 
   const handleDownloadIcs = () => {
@@ -347,6 +353,7 @@ export function HomeSections({
           <SyncPanel
             googleConnected={!!providerToken}
             onSyncMonth={handleSyncMonth}
+            syncing={syncing}
             syncMessage={syncMessage}
             onDownloadIcs={handleDownloadIcs}
             feedUrl={feedUrl}

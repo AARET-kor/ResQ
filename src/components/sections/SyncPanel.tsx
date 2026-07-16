@@ -10,6 +10,7 @@ import type { ExtractedEvent } from '../../lib/gmail'
 export function SyncPanel({
   googleConnected,
   onSyncMonth,
+  syncing = false,
   syncMessage,
   onDownloadIcs,
   feedUrl,
@@ -21,6 +22,7 @@ export function SyncPanel({
 }: {
   googleConnected: boolean
   onSyncMonth: () => void
+  syncing?: boolean
   syncMessage: string | null
   onDownloadIcs: () => void
   feedUrl: string | null
@@ -40,8 +42,8 @@ export function SyncPanel({
           <span className="font-mono text-[10px] uppercase text-cream/50">Google 캘린더</span>
           {googleConnected ? (
             <>
-              <button onClick={onSyncMonth}
-                className="self-start rounded-md bg-neon px-4 py-2 font-grotesk text-xs uppercase text-bg transition hover:opacity-90">
+              <button onClick={onSyncMonth} disabled={syncing}
+                className="self-start rounded-md bg-neon px-4 py-2 font-grotesk text-xs uppercase text-bg transition hover:opacity-90 disabled:opacity-50">
                 Google 캘린더로 이번 달 보내기
               </button>
               <span className="font-mono text-[10px] text-cream/50">30분 전 알림, 학회는 하루 전 추가</span>

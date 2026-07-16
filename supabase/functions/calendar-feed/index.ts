@@ -10,22 +10,31 @@ function utc(iso: string): string {
 
 Deno.serve(async (req) => {
   const token = new URL(req.url).searchParams.get('token')
-  if (!token) return new Response('missing token', { status: 400 })
+  // ics_token is a UUID column; reject anything else outright so the token can
+  // never smuggle extra PostgREST filters, and encode it defensively anyway.
+  if (!token || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(token)) {
+    return new Response('missing or invalid token', { status: 400 })
+  }
   const base = Deno.env.get('SUPABASE_URL')!
   const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   const headers = { apikey: key, Authorization: `Bearer ${key}` }
 
-  const pRes = await fetch(`${base}/rest/v1/profiles?ics_token=eq.${token}&select=id`, { headers })
+  const pRes = await fetch(
+    `${base}/rest/v1/profiles?ics_token=eq.${encodeURIComponent(token)}&select=id`,
+    { headers },
+  )
   const profiles = await pRes.json()
   if (!Array.isArray(profiles) || profiles.length === 0) return new Response('not found', { status: 404 })
   const userId = profiles[0].id
 
   const [evRes, tdRes] = await Promise.all([
-    fetch(`${base}/rest/v1/events?user_id=eq.${userId}&select=*`, { headers }),
-    fetch(`${base}/rest/v1/todos?user_id=eq.${userId}&done=eq.false&select=*`, { headers }),
+    fetch(`${base}/rest/v1/events?user_id=eq.${encodeURIComponent(userId)}&select=*`, { headers }),
+    fetch(`${base}/rest/v1/todos?user_id=eq.${encodeURIComponent(userId)}&done=eq.false&select=*`, { headers }),
   ])
-  const events = await evRes.json()
-  const todos = await tdRes.json()
+  const eventsRaw = await evRes.json()
+  const todosRaw = await tdRes.json()
+  const events = Array.isArray(eventsRaw) ? eventsRaw : []
+  const todos = Array.isArray(todosRaw) ? todosRaw : []
 
   const now = utc(new Date().toISOString())
   const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//ResQ//KR', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:ResQ']

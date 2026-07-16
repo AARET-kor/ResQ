@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { EventKind } from './events'
+import { GOOGLE_AUTH_ERROR } from './gcal'
 
 export interface EmailText {
   id?: string
@@ -34,6 +35,7 @@ export async function listRecentEmailTexts(
 ): Promise<EmailText[]> {
   const auth = { Authorization: `Bearer ${token}` }
   const listRes = await fetcher(`${GMAIL}/messages?maxResults=8&q=${encodeURIComponent(QUERY)}`, { headers: auth })
+  if ((listRes as Response).status === 401) throw new Error(GOOGLE_AUTH_ERROR)
   if (!listRes.ok) throw new Error(`gmail list failed: ${(listRes as Response).status}`)
   const list = await listRes.json()
   const ids: { id: string }[] = list.messages ?? []
@@ -65,5 +67,19 @@ export async function requestEventExtraction(
   if (error || !data?.events) {
     throw new Error('추출 서버에 연결할 수 없습니다. (extract-events 함수 배포 필요)')
   }
-  return data.events as ExtractedEvent[]
+  // LLM output over untrusted email is untrusted itself — drop malformed
+  // candidates so a missing/invalid field can never crash the review UI.
+  return (data.events as unknown[]).filter(isValidExtractedEvent)
+}
+
+const VALID_KINDS = new Set(['conference', 'surgery', 'social', 'professor', 'other'])
+
+function isValidExtractedEvent(e: unknown): e is ExtractedEvent {
+  if (typeof e !== 'object' || e === null) return false
+  const v = e as Record<string, unknown>
+  return (
+    typeof v.title === 'string' && v.title.trim().length > 0 &&
+    typeof v.starts_at === 'string' && !Number.isNaN(new Date(v.starts_at).getTime()) &&
+    typeof v.kind === 'string' && VALID_KINDS.has(v.kind)
+  )
 }
