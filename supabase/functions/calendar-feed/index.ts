@@ -1,0 +1,48 @@
+// Edge Function: calendar-feed — ICS subscription feed, token-authenticated.
+// Deploy: supabase functions deploy calendar-feed --no-verify-jwt
+// URL: {SUPABASE_URL}/functions/v1/calendar-feed?token=<profiles.ics_token>
+function esc(s: string): string {
+  return s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n')
+}
+function utc(iso: string): string {
+  return new Date(iso).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')
+}
+
+Deno.serve(async (req) => {
+  const token = new URL(req.url).searchParams.get('token')
+  if (!token) return new Response('missing token', { status: 400 })
+  const base = Deno.env.get('SUPABASE_URL')!
+  const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  const headers = { apikey: key, Authorization: `Bearer ${key}` }
+
+  const pRes = await fetch(`${base}/rest/v1/profiles?ics_token=eq.${token}&select=id`, { headers })
+  const profiles = await pRes.json()
+  if (!Array.isArray(profiles) || profiles.length === 0) return new Response('not found', { status: 404 })
+  const userId = profiles[0].id
+
+  const [evRes, tdRes] = await Promise.all([
+    fetch(`${base}/rest/v1/events?user_id=eq.${userId}&select=*`, { headers }),
+    fetch(`${base}/rest/v1/todos?user_id=eq.${userId}&done=eq.false&select=*`, { headers }),
+  ])
+  const events = await evRes.json()
+  const todos = await tdRes.json()
+
+  const now = utc(new Date().toISOString())
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//ResQ//KR', 'CALSCALE:GREGORIAN', 'X-WR-CALNAME:ResQ']
+  for (const e of events) {
+    const end = e.ends_at ?? new Date(new Date(e.starts_at).getTime() + 3_600_000).toISOString()
+    lines.push('BEGIN:VEVENT', `UID:resq-ev-${e.id}`, `DTSTAMP:${now}`,
+      `DTSTART:${utc(e.starts_at)}`, `DTEND:${utc(end)}`, `SUMMARY:${esc(e.title)}`)
+    if (e.location) lines.push(`LOCATION:${esc(e.location)}`)
+    lines.push('BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:ResQ', 'TRIGGER:-PT30M', 'END:VALARM', 'END:VEVENT')
+  }
+  for (const t of todos) {
+    if (!t.due_date) continue
+    lines.push('BEGIN:VEVENT', `UID:resq-todo-${t.id}`, `DTSTAMP:${now}`,
+      `DTSTART;VALUE=DATE:${t.due_date.replace(/-/g, '')}`, `SUMMARY:${esc(`[할일] ${t.title}`)}`, 'END:VEVENT')
+  }
+  lines.push('END:VCALENDAR')
+  return new Response(lines.join('\r\n') + '\r\n', {
+    headers: { 'content-type': 'text/calendar; charset=utf-8' },
+  })
+})
