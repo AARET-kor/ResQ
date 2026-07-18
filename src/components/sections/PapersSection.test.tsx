@@ -14,7 +14,7 @@ const papers: Paper[] = [
 const JOURNALS = journalsFor('성형외과')
 
 const base = {
-  papers,
+  shelves: [{ label: '성형외과 신착', papers }],
   loading: false,
   error: null,
   journals: [] as ReturnType<typeof journalsFor>,
@@ -22,6 +22,10 @@ const base = {
   onToggleJournal: vi.fn(),
   days: 7 as 7 | 30,
   onDaysChange: vi.fn(),
+  sortKey: 'date' as const,
+  sortDir: 'desc' as const,
+  onSortKeyChange: vi.fn(),
+  onSortDirChange: vi.fn(),
   onRefresh: vi.fn(),
   onOpen: vi.fn(),
   onUploadPdf: vi.fn(),
@@ -37,8 +41,9 @@ const base = {
 }
 
 describe('PapersSection', () => {
-  it('renders paper cards and a refresh button', () => {
+  it('renders shelves and a refresh button', () => {
     render(<PapersSection {...base} />)
+    expect(screen.getByText('성형외과 신착')).toBeInTheDocument()
     expect(screen.getByText('Semaglutide outcomes')).toBeInTheDocument()
     expect(screen.getByText(/NEJM/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '새 논문 불러오기' })).toBeInTheDocument()
@@ -49,8 +54,7 @@ describe('PapersSection', () => {
     render(<PapersSection {...base} onRefresh={onRefresh} onOpen={onOpen} />)
     await userEvent.click(screen.getByRole('button', { name: '새 논문 불러오기' }))
     expect(onRefresh).toHaveBeenCalled()
-    const card = screen.getByText('Semaglutide outcomes').closest('article')!
-    await userEvent.click(within(card).getByRole('button', { name: 'AI 분석 열기' }))
+    await userEvent.click(screen.getByText('Semaglutide outcomes'))
     expect(onOpen).toHaveBeenCalledWith(papers[0])
   })
 
@@ -69,9 +73,9 @@ describe('PapersSection', () => {
   })
 
   it('shows empty and loading states', () => {
-    const { rerender } = render(<PapersSection {...base} papers={[]} loading={true} />)
+    const { rerender } = render(<PapersSection {...base} shelves={[]} loading={true} />)
     expect(screen.getByText(/불러오는 중/)).toBeInTheDocument()
-    rerender(<PapersSection {...base} papers={[]} loading={false} />)
+    rerender(<PapersSection {...base} shelves={[]} loading={false} />)
     expect(screen.getByText(/새 논문 불러오기.*를 눌러/)).toBeInTheDocument()
   })
 
@@ -85,10 +89,22 @@ describe('PapersSection', () => {
     expect(onDaysChange).toHaveBeenCalledWith(30)
   })
 
-  it('marks OA journals and full-text availability', () => {
-    render(<PapersSection {...base} journals={JOURNALS}
-      papers={[{ ...papers[0], pmcid: 'PMC1' }]} />)
-    expect(screen.getByText('원문 분석 가능')).toBeInTheDocument()
+  it('renders unindexed journals (AAPS) as homepage link chips, not filter buttons', () => {
+    render(<PapersSection {...base} journals={JOURNALS} />)
+    const aaps = JOURNALS.find((j) => j.id === 'aaps')!
+    const link = screen.getByRole('link', { name: new RegExp(aaps.label.replace(/[()]/g, '\\$&')) })
+    expect(link).toHaveAttribute('href', aaps.homepage)
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(screen.queryByRole('button', { name: new RegExp(aaps.label.replace(/[()]/g, '\\$&')) })).not.toBeInTheDocument()
+  })
+
+  it('fires sort key and direction changes', async () => {
+    const onSortKeyChange = vi.fn(); const onSortDirChange = vi.fn()
+    render(<PapersSection {...base} onSortKeyChange={onSortKeyChange} onSortDirChange={onSortDirChange} />)
+    await userEvent.selectOptions(screen.getByLabelText('정렬'), 'cited')
+    expect(onSortKeyChange).toHaveBeenCalledWith('cited')
+    await userEvent.click(screen.getByRole('button', { name: '정렬 방향' }))
+    expect(onSortDirChange).toHaveBeenCalledWith('asc')
   })
 
   it('fires onUploadPdf with the chosen file', async () => {
