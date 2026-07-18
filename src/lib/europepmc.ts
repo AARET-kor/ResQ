@@ -73,6 +73,7 @@ export async function searchEuropePmc(
     url: h.doi ? `https://doi.org/${h.doi}` : `https://europepmc.org/article/${h.source}/${h.id}`,
     authors: h.authorString ?? '',
     citedByCount: h.citedByCount ?? 0,
+    date: h.firstPublicationDate ?? undefined,
     src: h.source ?? 'MED',
   }))
 }

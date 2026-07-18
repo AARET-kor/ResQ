@@ -72,7 +72,16 @@ export default function App() {
               const saved = await upsertProfile(supabase, { id: profile!.id, ...v })
               setProfile(saved)
               setSettingsOpen(false)
-            } catch (e) { console.error(e) }
+            } catch (e) {
+              // interests column may not exist yet (migration 0008) — at least
+              // persist the primary specialty change instead of losing both.
+              console.error(e)
+              try {
+                const saved = await upsertProfile(supabase, { id: profile!.id, specialty: v.specialty })
+                setProfile(saved)
+                setSettingsOpen(false)
+              } catch (e2) { console.error(e2) }
+            }
           }}
         />
       )}

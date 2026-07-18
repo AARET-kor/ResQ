@@ -1,5 +1,4 @@
 import { X } from 'lucide-react'
-import { LiquidGlass } from '../LiquidGlass'
 import { PaperShelf } from './PaperShelf'
 import type { Paper } from '../../lib/pubmed'
 import type { PaperAnalysis } from '../../lib/papers'
@@ -197,67 +196,69 @@ export function PapersSection({
         </div>
       )}
 
-      {/* Analysis drawer */}
+      {/* Analysis drawer — light sage "reading mode" panel.
+          NOTE: LiquidGlass forces overflow:hidden, which killed scrolling here;
+          this plain panel owns its own overflow-y. */}
       {selected && (
         <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/60 p-4 sm:items-center" role="dialog">
-          <LiquidGlass className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-[24px] !bg-[#0a1240]/95">
-            <div className="flex flex-col gap-4 p-6">
+          <div className="max-h-[85vh] w-full max-w-2xl overflow-y-auto overscroll-contain rounded-[24px] bg-[#EFF5EC] text-[#1c3325] shadow-2xl">
+            <div className="flex flex-col gap-5 p-6 sm:p-8">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2">
-                    <h4 className="font-mono text-base font-bold">{selectedTitle ?? selected.title}</h4>
+                    <h4 className="font-mono text-base font-bold leading-snug text-[#122619]">{selectedTitle ?? selected.title}</h4>
                     {analysisKind === 'report' && (
-                      <span className="rounded-full bg-neon/20 px-2 py-0.5 font-mono text-[10px] uppercase text-neon">
+                      <span className="shrink-0 rounded-full bg-[#1f7a3f]/15 px-2 py-0.5 font-mono text-[10px] uppercase text-[#1f7a3f]">
                         풀 리포트
                       </span>
                     )}
                   </div>
-                  <p className="font-mono text-[11px] uppercase text-cream/60">{selected.journal} {selected.year && `· ${selected.year}`}</p>
+                  <p className="mt-1 font-mono text-[11px] uppercase text-[#1c3325]/60">{selected.journal} {selected.year && `· ${selected.year}`}</p>
                 </div>
                 <button aria-label="닫기" onClick={onClose}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/30 transition hover:bg-white/10">
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#1c3325]/25 text-[#1c3325] transition hover:bg-[#1c3325]/10">
                   <X size={14} />
                 </button>
               </div>
               {/* KO 분석을 먼저, EN 원문 초록을 아래에 — 한/영 병기로 한눈에 */}
-              <div>
-                <h5 className="mb-1 font-mono text-[11px] uppercase text-neon">AI 분석 · 한국어 리포트</h5>
-                {analysisLoading && <p className="font-mono text-xs text-cream/50">큐비가 논문을 분석하는 중… 🐾</p>}
+              <div className="rounded-xl bg-white/70 p-4">
+                <h5 className="mb-2 font-mono text-[11px] font-bold uppercase tracking-wider text-[#1f7a3f]">AI 분석 · 한국어 리포트</h5>
+                {analysisLoading && <p className="font-mono text-xs text-[#1c3325]/60">큐비가 논문을 분석하는 중… 🐾</p>}
                 {analysisError && (
-                  <div className="flex flex-col gap-2 rounded-md border border-yellow-400/40 bg-yellow-400/10 p-3">
-                    <p className="font-mono text-xs text-yellow-300">{analysisError}</p>
+                  <div className="flex flex-col gap-2 rounded-md border border-amber-400 bg-amber-50 p-3">
+                    <p className="font-mono text-xs text-amber-900">{analysisError}</p>
                     {/서버|배포|ANTHROPIC/i.test(analysisError) && (
-                      <p className="font-mono text-[11px] leading-relaxed text-cream/70">
+                      <p className="font-mono text-[11px] leading-relaxed text-amber-900/80">
                         관리자 설정 필요: 터미널에서{' '}
-                        <code className="rounded bg-black/40 px-1">supabase secrets set ANTHROPIC_API_KEY=발급받은키</code>
+                        <code className="rounded bg-amber-900/10 px-1">supabase secrets set ANTHROPIC_API_KEY=발급받은키</code>
                         {' '}실행 후 다시 열면 한국어 분석이 표시됩니다.
                       </p>
                     )}
                   </div>
                 )}
-                {analysis && <p className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-cream">{analysis}</p>}
+                {analysis && <p className="whitespace-pre-wrap font-mono text-[13px] leading-[1.8] text-[#1c3325]">{analysis}</p>}
               </div>
-              <div>
-                <h5 className="mb-1 font-mono text-[11px] uppercase text-neon">초록 · Abstract (EN)</h5>
-                <p className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-cream/80">{selected.abstract || '(초록 없음)'}</p>
+              <div className="rounded-xl bg-white/50 p-4">
+                <h5 className="mb-2 font-mono text-[11px] font-bold uppercase tracking-wider text-[#1f7a3f]">초록 · Abstract (EN)</h5>
+                <p className="whitespace-pre-wrap font-mono text-[13px] leading-[1.8] text-[#1c3325]/85">{selected.abstract || '(초록 없음)'}</p>
               </div>
               {analysis && (
                 <a
                   download="resq-paper-report.md"
                   href={`data:text/markdown;charset=utf-8,${encodeURIComponent(analysis)}`}
-                  className="font-mono text-[10px] uppercase text-neon underline"
+                  className="font-mono text-[10px] uppercase text-[#1f7a3f] underline"
                 >
                   리포트 다운로드 (.md)
                 </a>
               )}
               {selected.url && (
                 <a href={selected.url} target="_blank" rel="noreferrer"
-                  className="font-mono text-[10px] uppercase text-cream/50 underline transition hover:text-neon">
-                  PubMed에서 원문 보기
+                  className="font-mono text-[10px] uppercase text-[#1c3325]/60 underline transition hover:text-[#1f7a3f]">
+                  원문 보기
                 </a>
               )}
             </div>
-          </LiquidGlass>
+          </div>
         </div>
       )}
     </div>

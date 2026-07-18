@@ -23,6 +23,16 @@ describe('sortPapers', () => {
     expect(sortPapers(papers, 'jif', 'desc').map((x) => x.pmid)).toEqual(['c', 'a', 'b']) // 12.8 > 3.9 > unknown
     expect(sortPapers(papers, 'jif', 'asc').map((x) => x.pmid)).toEqual(['a', 'c', 'b'])  // 3.9 < 12.8, unknown last
   })
+  it('sorts same-year papers by day-level date when available', () => {
+    const sameYear = [
+      p({ pmid: 'x', year: '2026', date: '2026-07-01' }),
+      p({ pmid: 'y', year: '2026', date: '2026-07-15' }),
+      p({ pmid: 'z', year: '2026', date: '2026-07-08' }),
+    ]
+    expect(sortPapers(sameYear, 'date', 'desc').map((q) => q.pmid)).toEqual(['y', 'z', 'x'])
+    expect(sortPapers(sameYear, 'date', 'asc').map((q) => q.pmid)).toEqual(['x', 'z', 'y'])
+  })
+
   it('does not mutate the input', () => {
     const before = papers.map((x) => x.pmid)
     sortPapers(papers, 'date', 'desc')

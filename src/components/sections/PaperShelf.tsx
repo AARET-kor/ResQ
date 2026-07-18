@@ -1,4 +1,5 @@
 import type { Paper } from '../../lib/pubmed'
+import { jifForJournal } from '../../lib/sources'
 
 const COVERS = ['#7c5cff', '#0ea5e9', '#ec4899', '#f59e0b', '#22c55e', '#ef4444', '#8b5cf6', '#14b8a6']
 
@@ -48,10 +49,17 @@ export function PaperShelf({
                 <p className="line-clamp-4 font-mono text-[13px] font-bold leading-snug text-white">
                   {p.title}
                 </p>
-                <div className="flex items-end justify-between">
-                  <span className="font-mono text-[9px] text-white/70">{p.year}</span>
-                  {(p.citedByCount ?? 0) > 0 && (
-                    <span className="font-mono text-[9px] text-white/80">피인용 {p.citedByCount}</span>
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-end justify-between">
+                    <span className="font-mono text-[9px] text-white/70">{p.date ?? p.year}</span>
+                    {(p.citedByCount ?? 0) > 0 && (
+                      <span className="font-mono text-[9px] text-white/80">피인용 {p.citedByCount}</span>
+                    )}
+                  </div>
+                  {jifForJournal(p.journal) != null && (
+                    <span className="self-start rounded bg-black/30 px-1.5 py-0.5 font-mono text-[9px] text-white/90">
+                      IF {jifForJournal(p.journal)}
+                    </span>
                   )}
                 </div>
               </div>

@@ -32,6 +32,9 @@ describe('journal sources', () => {
     const js = journalsFor('성형외과')
     const aaps = js.find((j) => j.id === 'aaps')!
     expect(aaps.indexed).toBe(false)
+    expect(aaps.kr).toBe(true)
+    const kr = journalsFor('성형외과').filter((j) => j.kr && j.indexed !== false)
+    expect(kr.map((j) => j.id)).toEqual(expect.arrayContaining(['aps', 'acfs']))
     expect(aaps.homepage).toBeTruthy()
   })
 })

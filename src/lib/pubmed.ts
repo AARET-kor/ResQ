@@ -11,6 +11,7 @@ export interface Paper {
   authors?: string
   citedByCount?: number
   src?: string          // MED | PMC | PPR …
+  date?: string         // YYYY-MM-DD first publication date (day-level sorting)
 }
 
 /** 전공 → PubMed 검색어 (config). Unmapped → generic medicine. */

@@ -23,6 +23,9 @@ export function sortPapers(papers: Paper[], key: PaperSortKey, dir: SortDir): Pa
       return sign * (ja - jb)
     }
     if (key === 'cited') return sign * ((a.citedByCount ?? 0) - (b.citedByCount ?? 0))
-    return sign * (Number(a.year || 0) - Number(b.year || 0))
+    // Day-level date when available (year alone made same-year sorts look inert).
+    const da = a.date ?? `${a.year || '0000'}-00-00`
+    const db = b.date ?? `${b.year || '0000'}-00-00`
+    return sign * da.localeCompare(db)
   })
 }

@@ -11,6 +11,7 @@ export interface JournalSource {
   homepage?: string
   /** false → 국제 DB(PubMed 등) 미색인 학회지. 검색 필터로 쓰지 않고 UI에서 바로가기 링크 칩으로만 노출한다. */
   indexed?: boolean
+  kr?: boolean       // 한국 학회지 (dedicated Korean-journal shelf)
 }
 
 /**
@@ -21,14 +22,14 @@ export interface JournalSource {
 export const SPECIALTY_JOURNALS: Record<string, JournalSource[]> = {
   성형외과: [
     { id: 'prs', label: 'Plast Reconstr Surg (PRS)', ta: 'Plast Reconstr Surg', oa: false, publisher: 'LWW', jif: 3.9 },
-    { id: 'aps', label: 'Archives of Plastic Surgery (대한성형외과학회지)', ta: 'Arch Plast Surg', oa: true, publisher: 'Thieme', jif: 1.4, homepage: 'https://www.e-aps.org' },
+    { id: 'aps', label: 'Archives of Plastic Surgery (대한성형외과학회지)', ta: 'Arch Plast Surg', oa: true, publisher: 'Thieme', jif: 1.4, homepage: 'https://www.e-aps.org', kr: true },
     { id: 'jpras', label: 'JPRAS', ta: 'J Plast Reconstr Aesthet Surg', oa: false, publisher: 'Elsevier', jif: 2.2 },
     { id: 'apls', label: 'Aesthetic Plastic Surgery', ta: 'Aesthetic Plast Surg', oa: false, publisher: 'Springer', jif: 2.0 },
     { id: 'asj', label: 'Aesthetic Surgery Journal', ta: 'Aesthet Surg J', oa: false, publisher: 'OUP', jif: 3.0 },
-    { id: 'acfs', label: 'Arch Craniofac Surg', ta: 'Arch Craniofac Surg', oa: true, publisher: '대한두개안면성형외과학회', homepage: 'https://www.e-acfs.org' },
+    { id: 'acfs', label: 'Arch Craniofac Surg', ta: 'Arch Craniofac Surg', oa: true, publisher: '대한두개안면성형외과학회', homepage: 'https://www.e-acfs.org', kr: true },
     { id: 'jrm', label: 'J Reconstr Microsurg', ta: 'J Reconstr Microsurg', oa: false, publisher: 'Thieme', jif: 2.2 },
-    { id: 'aaps', label: 'Arch Aesthetic Plast Surg (대한미용성형외과학회지)', ta: 'Arch Aesthet Plast Surg', oa: true, publisher: 'KSAPS', homepage: 'https://www.e-aaps.org', indexed: false },
-    { id: 'jwmr', label: 'J Wound Manag Res (대한창상학회지)', ta: 'J Wound Manag Res', oa: true, publisher: 'KWMS', homepage: 'https://www.jwmr.org', indexed: false },
+    { id: 'aaps', label: 'Arch Aesthetic Plast Surg (대한미용성형외과학회지)', ta: 'Arch Aesthet Plast Surg', oa: true, publisher: 'KSAPS', homepage: 'https://www.e-aaps.org', indexed: false, kr: true },
+    { id: 'jwmr', label: 'J Wound Manag Res (대한창상학회지)', ta: 'J Wound Manag Res', oa: true, publisher: 'KWMS', homepage: 'https://www.jwmr.org', indexed: false, kr: true },
   ],
   피부과: [
     { id: 'jaad', label: 'J Am Acad Dermatol (JAAD)', ta: 'J Am Acad Dermatol', oa: false, publisher: 'Elsevier', jif: 12.8 },
@@ -36,7 +37,7 @@ export const SPECIALTY_JOURNALS: Record<string, JournalSource[]> = {
     { id: 'jamad', label: 'JAMA Dermatology', ta: 'JAMA Dermatol', oa: false, publisher: 'AMA', jif: 11.5 },
     { id: 'jeadv', label: 'JEADV', ta: 'J Eur Acad Dermatol Venereol', oa: false, publisher: 'Wiley', jif: 8.9 },
     { id: 'jid', label: 'J Invest Dermatol', ta: 'J Invest Dermatol', oa: false, publisher: 'Elsevier', jif: 5.7 },
-    { id: 'annd', label: 'Ann Dermatol (대한피부과학회)', ta: 'Ann Dermatol', oa: true, publisher: 'KDA', jif: 1.1 },
+    { id: 'annd', label: 'Ann Dermatol (대한피부과학회)', ta: 'Ann Dermatol', oa: true, publisher: 'KDA', jif: 1.1, kr: true },
   ],
 }
 

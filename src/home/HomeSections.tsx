@@ -258,18 +258,30 @@ export function HomeSections({
     setPapersError(null)
     try {
       const tas = journals.filter((j) => j.indexed !== false && selectedJournals.includes(j.id)).map((j) => j.ta)
-      const serverSort = sortKey === 'cited' ? 'cited' : 'date'
+      const serverSort = (sortKey === 'cited' ? 'cited' : 'date') as 'date' | 'cited'
       const results = await Promise.all(
         specialties.map((s, i) =>
           searchEuropePmc(s, fetch, {
             days: paperDays,
             tas: i === 0 ? tas : [],
             pageSize: 10,
-            sort: serverSort as 'date' | 'cited',
+            sort: serverSort,
           }).catch(() => [] as Paper[]),
         ),
       )
-      setShelfData(specialties.map((s, i) => ({ label: `${s} 신착`, papers: results[i] })))
+      const shelvesNext = specialties.map((s, i) => ({ label: `${s} 신착`, papers: results[i] }))
+      // 한국 학회지 선반: 주전공 레지스트리의 국내 학회지(색인된 것)만 모아 1년 범위로 검색.
+      const krTas = journals.filter((j) => j.kr && j.indexed !== false).map((j) => j.ta)
+      if (krTas.length > 0) {
+        const krPapers = await searchEuropePmc(specialties[0], fetch, {
+          tas: krTas,
+          days: 365,
+          pageSize: 10,
+          sort: serverSort,
+        }).catch(() => [] as Paper[])
+        shelvesNext.push({ label: '한국 학회지 (대한성형외과학회 등)', papers: krPapers })
+      }
+      setShelfData(shelvesNext)
     } catch (e) {
       console.error(e)
       setPapersError('논문을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.')
@@ -279,6 +291,12 @@ export function HomeSections({
   }
 
   const handleRefreshPapers = () => doRefreshPapers(feedList)
+
+  // Changing sort re-queries so server-side orders (cited) apply to fresh data.
+  useEffect(() => {
+    if (shelfData.length > 0) doRefreshPapers(feedList)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortKey, sortDir])
 
   const handleToggleSpecialty = async (name: string) => {
     const next = localInterests.includes(name)
