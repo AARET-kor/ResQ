@@ -1,0 +1,28 @@
+import type { Paper } from './pubmed'
+import { jifForJournal } from './sources'
+
+export type PaperSortKey = 'date' | 'cited' | 'jif'
+export type SortDir = 'asc' | 'desc'
+
+export const SORT_LABEL: Record<PaperSortKey, string> = {
+  date: '최신순',
+  cited: '피인용순',
+  jif: 'IF순 (참고)',
+}
+
+/** Pure sort; unknown-JIF journals always sink to the end for the jif key. */
+export function sortPapers(papers: Paper[], key: PaperSortKey, dir: SortDir): Paper[] {
+  const sign = dir === 'desc' ? -1 : 1
+  return [...papers].sort((a, b) => {
+    if (key === 'jif') {
+      const ja = jifForJournal(a.journal)
+      const jb = jifForJournal(b.journal)
+      if (ja == null && jb == null) return 0
+      if (ja == null) return 1
+      if (jb == null) return -1
+      return sign * (ja - jb)
+    }
+    if (key === 'cited') return sign * ((a.citedByCount ?? 0) - (b.citedByCount ?? 0))
+    return sign * (Number(a.year || 0) - Number(b.year || 0))
+  })
+}

@@ -8,6 +8,9 @@ export interface Paper {
   abstract: string
   url: string
   pmcid: string | null
+  authors?: string
+  citedByCount?: number
+  src?: string          // MED | PMC | PPR …
 }
 
 /** 전공 → PubMed 검색어 (config). Unmapped → generic medicine. */
@@ -92,11 +95,9 @@ export async function fetchRecentPapers(
   return parsePubmedArticles(await fRes.text())
 }
 
-/** Open-access full text from PMC (empty string when no body is available). */
-export async function fetchPmcFullText(pmcid: string, fetcher: typeof fetch = fetch): Promise<string> {
-  const res = await fetcher(`${EUTILS}/efetch.fcgi?db=pmc&retmode=xml&id=${encodeURIComponent(pmcid)}`)
-  if (!res.ok) throw new Error(`pmc efetch failed: ${(res as Response).status}`)
-  const doc = new DOMParser().parseFromString(await res.text(), 'text/xml')
+/** Join <body> section titles/paragraphs of a JATS XML into prompt-ready text. */
+export function extractBodyText(xml: string): string {
+  const doc = new DOMParser().parseFromString(xml, 'text/xml')
   const body = doc.querySelector('body')
   if (!body) return ''
   const parts: string[] = []
@@ -106,4 +107,11 @@ export async function fetchPmcFullText(pmcid: string, fetcher: typeof fetch = fe
   })
   // Cap for prompt budget; reports don't need references/appendices tails.
   return parts.join('\n\n').slice(0, 60_000)
+}
+
+/** Open-access full text from PMC (empty string when no body is available). */
+export async function fetchPmcFullText(pmcid: string, fetcher: typeof fetch = fetch): Promise<string> {
+  const res = await fetcher(`${EUTILS}/efetch.fcgi?db=pmc&retmode=xml&id=${encodeURIComponent(pmcid)}`)
+  if (!res.ok) throw new Error(`pmc efetch failed: ${(res as Response).status}`)
+  return extractBodyText(await res.text())
 }
