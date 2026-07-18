@@ -16,6 +16,7 @@ export interface Profile {
   last_active_on?: string | null // ISO date
   streak_days?: number | null
   ics_token?: string | null
+  interests?: string | null
 }
 
 export async function getProfile(client: SupabaseClient, userId: string): Promise<Profile | null> {
@@ -48,4 +49,15 @@ const REQUIRED: (keyof Profile)[] = [
 export function isProfileComplete(p: Profile | null): boolean {
   if (!p) return false
   return REQUIRED.every((k) => p[k] !== null && p[k] !== undefined && p[k] !== '')
+}
+
+/** "성형외과,피부과" → ['성형외과','피부과'] (trimmed, deduped, empty-safe). */
+export function parseInterests(interests: string | null | undefined): string[] {
+  if (!interests) return []
+  return [...new Set(interests.split(',').map((s) => s.trim()).filter(Boolean))]
+}
+
+/** The user's paper feed specialties: primary first, then interests, deduped. */
+export function feedSpecialties(p: { specialty: string | null; interests?: string | null }): string[] {
+  return [...new Set([p.specialty ?? '', ...parseInterests(p.interests)].filter(Boolean))]
 }

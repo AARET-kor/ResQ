@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { journalsFor, journalById } from './sources'
+import { journalsFor, journalById, jifForJournal } from './sources'
 
 describe('journal sources', () => {
   it('lists plastic-surgery journals including Thieme OA APS', () => {
@@ -17,5 +17,21 @@ describe('journal sources', () => {
   it('looks a journal up by id within a specialty', () => {
     expect(journalById('성형외과', 'prs')?.ta).toBe('Plast Reconstr Surg')
     expect(journalById('성형외과', 'nope')).toBeUndefined()
+  })
+  it('lists dermatology journals including OA Ann Dermatol', () => {
+    const js = journalsFor('피부과')
+    expect(js.length).toBeGreaterThanOrEqual(5)
+    const annd = js.find((j) => j.id === 'annd')!
+    expect(annd.oa).toBe(true)
+  })
+  it('looks up config JIF by journal title', () => {
+    expect(jifForJournal('Plast Reconstr Surg')).toBe(3.9)
+    expect(jifForJournal('Unknown Journal')).toBeUndefined()
+  })
+  it('includes unindexed 성형외과 society journals with homepage links', () => {
+    const js = journalsFor('성형외과')
+    const aaps = js.find((j) => j.id === 'aaps')!
+    expect(aaps.indexed).toBe(false)
+    expect(aaps.homepage).toBeTruthy()
   })
 })
