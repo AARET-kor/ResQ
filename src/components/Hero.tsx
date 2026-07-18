@@ -14,7 +14,7 @@ const NAV = [
   { label: '논문', href: '#papers', active: true },
   { label: '캘린더', href: '#schedule', active: true },
   { label: '메일', href: '#', active: false },
-  { label: '설정', href: '#', active: true },
+  { label: '설정', href: '#', active: true, settings: true },
 ]
 
 const STAGES: Stage[] = ['INTERN', 'JUNIOR', 'SENIOR', 'CHIEF']
@@ -93,11 +93,13 @@ export function Hero({
   profile,
   mascot,
   onSignOut,
+  onOpenSettings,
   now = new Date(),
 }: {
   profile: Profile
   mascot: MascotState | null
   onSignOut: () => void
+  onOpenSettings?: () => void
   now?: Date
 }) {
   const { daysLeft, percent } = computeDday(
@@ -203,16 +205,25 @@ export function Hero({
               <ul className="flex gap-8 px-[52px] py-[24px]">
                 {NAV.map((n) => (
                   <li key={n.label}>
-                    <a
-                      href={n.href}
-                      aria-disabled={!n.active}
-                      className={`font-grotesk text-[13px] uppercase transition ${
-                        n.active ? 'hover:text-neon' : 'cursor-not-allowed text-cream/40'
-                      }`}
-                    >
-                      {n.label}
-                      {!n.active && <span className="ml-1 text-[9px]">(곧)</span>}
-                    </a>
+                    {n.settings ? (
+                      <button
+                        onClick={onOpenSettings}
+                        className="font-grotesk text-[13px] uppercase transition hover:text-neon"
+                      >
+                        {n.label}
+                      </button>
+                    ) : (
+                      <a
+                        href={n.href}
+                        aria-disabled={!n.active}
+                        className={`font-grotesk text-[13px] uppercase transition ${
+                          n.active ? 'hover:text-neon' : 'cursor-not-allowed text-cream/40'
+                        }`}
+                      >
+                        {n.label}
+                        {!n.active && <span className="ml-1 text-[9px]">(곧)</span>}
+                      </a>
+                    )}
                   </li>
                 ))}
               </ul>

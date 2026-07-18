@@ -5,6 +5,7 @@ import { getProfile, upsertProfile, isProfileComplete, type Profile } from './li
 import { LoginScreen } from './components/LoginScreen'
 import { Onboarding, type OnboardingValues } from './components/Onboarding'
 import { Hero } from './components/Hero'
+import { SettingsModal } from './components/SettingsModal'
 import { TextureOverlay } from './components/TextureOverlay'
 import { useMascot } from './mascot/useMascot'
 import { HomeSections } from './home/HomeSections'
@@ -17,6 +18,7 @@ export default function App() {
   // returning user never flashes the onboarding form before their profile lands.
   const [profileLoaded, setProfileLoaded] = useState(false)
   const [onboardError, setOnboardError] = useState<string | null>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   const userId = session?.user.id
 
@@ -59,8 +61,21 @@ export default function App() {
   return (
     <>
       <TextureOverlay />
-      <Hero profile={profile!} mascot={mascot} onSignOut={signOut} />
+      <Hero profile={profile!} mascot={mascot} onSignOut={signOut} onOpenSettings={() => setSettingsOpen(true)} />
       <HomeSections profile={profile!} onProfileChange={setProfile} />
+      {settingsOpen && (
+        <SettingsModal
+          profile={profile!}
+          onClose={() => setSettingsOpen(false)}
+          onSave={async (v) => {
+            try {
+              const saved = await upsertProfile(supabase, { id: profile!.id, ...v })
+              setProfile(saved)
+              setSettingsOpen(false)
+            } catch (e) { console.error(e) }
+          }}
+        />
+      )}
     </>
   )
 }

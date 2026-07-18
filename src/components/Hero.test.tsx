@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Hero } from './Hero'
@@ -54,5 +54,12 @@ describe('Hero (figurine carousel)', () => {
     expect(screen.getByText(/길동/)).toBeInTheDocument()
     expect(screen.queryByText(/큐비/)).not.toBeInTheDocument()
     expect(screen.queryAllByRole('img')).toHaveLength(0)
+  })
+
+  it('opens settings from the nav', async () => {
+    const onOpenSettings = vi.fn()
+    render(<Hero profile={profile} mascot={mascot} onSignOut={() => {}} onOpenSettings={onOpenSettings} now={new Date('2028-02-18')} />)
+    await userEvent.click(screen.getByRole('button', { name: '설정' }))
+    expect(onOpenSettings).toHaveBeenCalled()
   })
 })
