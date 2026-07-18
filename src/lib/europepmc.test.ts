@@ -15,11 +15,19 @@ const PPR = {
 describe('epmcQueryFor', () => {
   it('builds specialty and journal-scoped queries with a date window', () => {
     const q1 = epmcQueryFor('성형외과', [], 7)
-    expect(q1).toContain('plastic')
+    expect(q1).toContain('"plastic surgery"')
     expect(q1).toContain('FIRST_PDATE:[')
     const q2 = epmcQueryFor('성형외과', ['Arch Plast Surg'], undefined)
     expect(q2).toContain('JOURNAL:"Arch Plast Surg"')
     expect(q2).not.toContain('FIRST_PDATE')
+  })
+  it('quotes multi-word phrases so bare "medicine" never floods results', () => {
+    const q = epmcQueryFor('마취과', [], undefined) // legacy alias resolves too
+    expect(q).toContain('"anesthesiology"')
+    expect(q).toContain('"pain medicine"')
+    expect(q).not.toMatch(/OR pain medicine\)/) // the old unquoted failure mode
+    const fallback = epmcQueryFor('피부과', [], undefined)
+    expect(fallback).toContain('"dermatology"')
   })
 })
 

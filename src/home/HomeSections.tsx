@@ -22,7 +22,8 @@ import { getAnalysis, requestAnalysis, requestReport, saveAnalysis, listMyReport
 import { journalsFor } from '../lib/sources'
 import { searchEuropePmc, fetchEpmcFullText } from '../lib/europepmc'
 import { sortPapers, type PaperSortKey, type SortDir } from '../lib/sortPapers'
-import { feedSpecialties } from '../lib/profile'
+import { parseInterests, upsertProfile } from '../lib/profile'
+import { SPECIALTIES, SPECIALTY_ABBR } from '../mascot/roster'
 import { PapersSection } from '../components/sections/PapersSection'
 
 /**
@@ -235,6 +236,10 @@ export function HomeSections({
   const [analysisKind, setAnalysisKind] = useState<'abstract' | 'report' | null>(null)
   const [sortKey, setSortKey] = useState<PaperSortKey>('date')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
+  // Local mirror of interests: shelves keep working this session even when the
+  // interests upsert fails (e.g. migration 0008 not applied yet).
+  const [localInterests, setLocalInterests] = useState<string[]>(() => parseInterests(profile.interests))
+  const [specialtyNotice, setSpecialtyNotice] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
@@ -243,15 +248,15 @@ export function HomeSections({
   }, [userId])
 
   const journals = journalsFor(profile.specialty)
+  const feedList = [...new Set([profile.specialty ?? '', ...localInterests].filter(Boolean))]
 
   const handleToggleJournal = (id: string) =>
     setSelectedJournals((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
 
-  const handleRefreshPapers = async () => {
+  const doRefreshPapers = async (specialties: string[]) => {
     setPapersLoading(true)
     setPapersError(null)
     try {
-      const specialties = feedSpecialties(profile)
       const tas = journals.filter((j) => j.indexed !== false && selectedJournals.includes(j.id)).map((j) => j.ta)
       const serverSort = sortKey === 'cited' ? 'cited' : 'date'
       const results = await Promise.all(
@@ -270,6 +275,29 @@ export function HomeSections({
       setPapersError('논문을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.')
     } finally {
       setPapersLoading(false)
+    }
+  }
+
+  const handleRefreshPapers = () => doRefreshPapers(feedList)
+
+  const handleToggleSpecialty = async (name: string) => {
+    const next = localInterests.includes(name)
+      ? localInterests.filter((x) => x !== name)
+      : [...localInterests, name]
+    setLocalInterests(next)
+    setSpecialtyNotice(null)
+    // Persist to the profile; degrade gracefully when the column doesn't exist yet.
+    try {
+      const saved = await upsertProfile(supabase, { id: userId, interests: next.join(',') })
+      onProfileChange(saved)
+    } catch (e) {
+      console.error(e)
+      setSpecialtyNotice('관심 전공 저장 실패 — 이번 세션에만 적용됩니다 (Supabase에 0008 마이그레이션 적용 필요)')
+    }
+    // Refresh shelves immediately if papers are already loaded.
+    if (shelfData.length > 0) {
+      const nextFeed = [...new Set([profile.specialty ?? '', ...next].filter(Boolean))]
+      doRefreshPapers(nextFeed)
     }
   }
 
@@ -432,6 +460,11 @@ export function HomeSections({
           analysisLoading={analysisLoading}
           analysisError={analysisError}
           onClose={handleClosePaper}
+          specialtyOptions={SPECIALTIES.map((s) => ({ name: s, abbr: SPECIALTY_ABBR[s] ?? '' }))}
+          feed={feedList}
+          primary={profile.specialty}
+          onToggleSpecialty={handleToggleSpecialty}
+          specialtyNotice={specialtyNotice}
         />
       </section>
     </div>

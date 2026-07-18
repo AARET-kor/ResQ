@@ -128,4 +128,25 @@ describe('PapersSection', () => {
       analysis={'## 요약\n내용'} analysisKind="report" />)
     expect(screen.getByRole('link', { name: /리포트 다운로드/ })).toBeInTheDocument()
   })
+
+  it('renders specialty chips with abbrs; primary is locked, others toggle', async () => {
+    const onToggleSpecialty = vi.fn()
+    render(<PapersSection {...base}
+      specialtyOptions={[{ name: '성형외과', abbr: 'PS' }, { name: '피부과', abbr: 'DM' }]}
+      feed={['성형외과']}
+      primary="성형외과"
+      onToggleSpecialty={onToggleSpecialty} />)
+    const psChip = screen.getByRole('button', { name: /성형외과.*PS/ })
+    expect(psChip).toBeDisabled() // primary — always on
+    await userEvent.click(screen.getByRole('button', { name: /피부과.*DM/ }))
+    expect(onToggleSpecialty).toHaveBeenCalledWith('피부과')
+  })
+
+  it('shows the specialty save notice when provided', () => {
+    render(<PapersSection {...base}
+      specialtyOptions={[{ name: '성형외과', abbr: 'PS' }]}
+      feed={['성형외과']} primary="성형외과"
+      specialtyNotice="관심 전공 저장 실패 — 이번 세션에만 적용됩니다" />)
+    expect(screen.getByText(/이번 세션에만 적용/)).toBeInTheDocument()
+  })
 })

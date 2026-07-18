@@ -40,7 +40,7 @@ export async function requestAnalysis(
     body: { title: paper.title, abstract: paper.abstract, specialty },
   })
   if (error || !data?.analysis) {
-    throw new Error('분석 서버에 연결할 수 없습니다. (analyze-paper 함수 배포 필요)')
+    throw new Error('분석 서버 오류 — ANTHROPIC_API_KEY 시크릿 미설정 또는 함수 미배포일 수 있습니다.')
   }
   return data.analysis as string
 }
@@ -88,7 +88,7 @@ export async function requestReport(
     },
   })
   if (error || !data?.analysis) {
-    throw new Error('분석 서버에 연결할 수 없습니다. (analyze-paper 함수 배포 필요)')
+    throw new Error('분석 서버 오류 — ANTHROPIC_API_KEY 시크릿 미설정 또는 함수 미배포일 수 있습니다.')
   }
   return data.analysis as string
 }

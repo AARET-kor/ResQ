@@ -13,6 +13,11 @@ export function PapersSection({
   onRefresh, onOpen, onUploadPdf,
   reports, onOpenReport,
   selected, selectedTitle, analysis, analysisKind, analysisLoading, analysisError, onClose,
+  specialtyOptions = [],
+  feed = [],
+  primary = null,
+  onToggleSpecialty,
+  specialtyNotice = null,
 }: {
   shelves: { label: string; papers: Paper[] }[]
   loading: boolean
@@ -38,6 +43,14 @@ export function PapersSection({
   analysisLoading: boolean
   analysisError: string | null
   onClose: () => void
+  /** All selectable specialties as {name, abbr}; empty hides the picker row. */
+  specialtyOptions?: { name: string; abbr: string }[]
+  /** Currently active feed specialties (primary first). */
+  feed?: string[]
+  /** The profile's primary specialty — always on, cannot be toggled off. */
+  primary?: string | null
+  onToggleSpecialty?: (name: string) => void
+  specialtyNotice?: string | null
 }) {
   const isEmpty = shelves.every((s) => s.papers.length === 0)
 
@@ -68,6 +81,41 @@ export function PapersSection({
           </button>
         </div>
       </div>
+
+      {specialtyOptions.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <p className="font-mono text-[10px] uppercase text-cream/40">
+            전공 선택 — 선반이 전공별로 추가됩니다 (주전공은 고정)
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {specialtyOptions.map((s) => {
+              const active = feed.includes(s.name)
+              const isPrimary = s.name === primary
+              return (
+                <button
+                  key={s.name}
+                  onClick={() => !isPrimary && onToggleSpecialty?.(s.name)}
+                  disabled={isPrimary}
+                  title={isPrimary ? '주전공 (설정에서 변경)' : undefined}
+                  className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 font-mono text-[11px] transition ${
+                    active
+                      ? 'bg-neon text-bg'
+                      : 'border border-white/20 text-cream/60 hover:bg-white/10'
+                  } ${isPrimary ? 'ring-1 ring-white/50' : ''}`}
+                >
+                  {s.name}
+                  <span className={`rounded-full px-1.5 py-0.5 text-[9px] uppercase ${active ? 'bg-black/20' : 'bg-white/10'}`}>
+                    {s.abbr}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+          {specialtyNotice && (
+            <p className="font-mono text-[11px] text-yellow-400">{specialtyNotice}</p>
+          )}
+        </div>
+      )}
 
       {journals.length > 0 && (
         <div className="flex flex-wrap gap-2">
@@ -171,15 +219,27 @@ export function PapersSection({
                   <X size={14} />
                 </button>
               </div>
+              {/* KO 분석을 먼저, EN 원문 초록을 아래에 — 한/영 병기로 한눈에 */}
               <div>
-                <h5 className="mb-1 font-mono text-[11px] uppercase text-neon">초록</h5>
-                <p className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-cream/80">{selected.abstract || '(초록 없음)'}</p>
+                <h5 className="mb-1 font-mono text-[11px] uppercase text-neon">AI 분석 · 한국어 리포트</h5>
+                {analysisLoading && <p className="font-mono text-xs text-cream/50">큐비가 논문을 분석하는 중… 🐾</p>}
+                {analysisError && (
+                  <div className="flex flex-col gap-2 rounded-md border border-yellow-400/40 bg-yellow-400/10 p-3">
+                    <p className="font-mono text-xs text-yellow-300">{analysisError}</p>
+                    {/서버|배포|ANTHROPIC/i.test(analysisError) && (
+                      <p className="font-mono text-[11px] leading-relaxed text-cream/70">
+                        관리자 설정 필요: 터미널에서{' '}
+                        <code className="rounded bg-black/40 px-1">supabase secrets set ANTHROPIC_API_KEY=발급받은키</code>
+                        {' '}실행 후 다시 열면 한국어 분석이 표시됩니다.
+                      </p>
+                    )}
+                  </div>
+                )}
+                {analysis && <p className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-cream">{analysis}</p>}
               </div>
               <div>
-                <h5 className="mb-1 font-mono text-[11px] uppercase text-neon">AI 분석 · breakdown</h5>
-                {analysisLoading && <p className="font-mono text-xs text-cream/50">큐비가 논문을 분석하는 중… 🐾</p>}
-                {analysisError && <p className="font-mono text-xs text-yellow-400">{analysisError}</p>}
-                {analysis && <p className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-cream">{analysis}</p>}
+                <h5 className="mb-1 font-mono text-[11px] uppercase text-neon">초록 · Abstract (EN)</h5>
+                <p className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-cream/80">{selected.abstract || '(초록 없음)'}</p>
               </div>
               {analysis && (
                 <a

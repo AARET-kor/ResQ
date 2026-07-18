@@ -56,6 +56,27 @@ export const SPECIALTY_ANIMALS: Record<string, string> = {
 /** Onboarding select options (mapped specialties, in declaration order). */
 export const SPECIALTIES = Object.keys(SPECIALTY_ANIMALS)
 
+/** English short codes shown on specialty chips (성형외과 PS, 피부과 DM …). */
+export const SPECIALTY_ABBR: Record<string, string> = {
+  내과: 'IM',
+  정형외과: 'OS',
+  외과: 'GS',
+  성형외과: 'PS',
+  마취통증의학과: 'AN',
+  소아청소년과: 'PED',
+  산부인과: 'OBGY',
+  정신건강의학과: 'PSY',
+  영상의학과: 'RAD',
+  응급의학과: 'EM',
+  신경과: 'NR',
+  신경외과: 'NS',
+  피부과: 'DM',
+  이비인후과: 'ENT',
+  안과: 'OPH',
+  비뇨의학과: 'URO',
+  가정의학과: 'FM',
+}
+
 /** Common short/legacy names → official specialty (covers free-text profiles). */
 const SPECIALTY_ALIASES: Record<string, string> = {
   마취과: '마취통증의학과',
