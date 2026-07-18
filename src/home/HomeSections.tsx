@@ -17,9 +17,12 @@ import {
   setTeamTaskStatus, deleteTeamTask, type Team, type TeamTask, type TeamTaskStatus,
 } from '../lib/team'
 import { TeamSection } from '../components/sections/TeamSection'
-import { fetchRecentPapers, fetchPmcFullText, type Paper } from '../lib/pubmed'
+import { fetchPmcFullText, type Paper } from '../lib/pubmed'
 import { getAnalysis, requestAnalysis, requestReport, saveAnalysis, listMyReports, type PaperAnalysis } from '../lib/papers'
 import { journalsFor } from '../lib/sources'
+import { searchEuropePmc, fetchEpmcFullText } from '../lib/europepmc'
+import { sortPapers, type PaperSortKey, type SortDir } from '../lib/sortPapers'
+import { feedSpecialties } from '../lib/profile'
 import { PapersSection } from '../components/sections/PapersSection'
 
 /**
@@ -218,7 +221,7 @@ export function HomeSections({
     catch (e) { console.error(e) }
   }
 
-  const [papers, setPapers] = useState<Paper[]>([])
+  const [shelfData, setShelfData] = useState<{ label: string; papers: Paper[] }[]>([])
   const [papersLoading, setPapersLoading] = useState(false)
   const [papersError, setPapersError] = useState<string | null>(null)
   const [selectedPaper, setSelectedPaper] = useState<Paper | null>(null)
@@ -230,6 +233,8 @@ export function HomeSections({
   const [reports, setReports] = useState<PaperAnalysis[]>([])
   const [selectedTitle, setSelectedTitle] = useState<string | null>(null)
   const [analysisKind, setAnalysisKind] = useState<'abstract' | 'report' | null>(null)
+  const [sortKey, setSortKey] = useState<PaperSortKey>('date')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
 
   useEffect(() => {
     let active = true
@@ -246,8 +251,20 @@ export function HomeSections({
     setPapersLoading(true)
     setPapersError(null)
     try {
-      const tas = journals.filter((j) => selectedJournals.includes(j.id)).map((j) => j.ta)
-      setPapers(await fetchRecentPapers(profile.specialty, fetch, { days: paperDays, tas, retmax: 12 }))
+      const specialties = feedSpecialties(profile)
+      const tas = journals.filter((j) => j.indexed !== false && selectedJournals.includes(j.id)).map((j) => j.ta)
+      const serverSort = sortKey === 'cited' ? 'cited' : 'date'
+      const results = await Promise.all(
+        specialties.map((s, i) =>
+          searchEuropePmc(s, fetch, {
+            days: paperDays,
+            tas: i === 0 ? tas : [],
+            pageSize: 10,
+            sort: serverSort as 'date' | 'cited',
+          }).catch(() => [] as Paper[]),
+        ),
+      )
+      setShelfData(specialties.map((s, i) => ({ label: `${s} 신착`, papers: results[i] })))
     } catch (e) {
       console.error(e)
       setPapersError('논문을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.')
@@ -255,6 +272,8 @@ export function HomeSections({
       setPapersLoading(false)
     }
   }
+
+  const shelves = shelfData.map((s) => ({ label: s.label, papers: sortPapers(s.papers, sortKey, sortDir) }))
 
   const refreshReports = () =>
     listMyReports(supabase, userId).then(setReports).catch(console.error)
@@ -270,7 +289,7 @@ export function HomeSections({
       let kind: 'abstract' | 'report' = 'abstract'
       let hasFulltext = false
       if (p.pmcid) {
-        const body = await fetchPmcFullText(p.pmcid).catch(() => '')
+        const body = (await fetchEpmcFullText(p.pmcid)) || (await fetchPmcFullText(p.pmcid).catch(() => ''))
         if (body) {
           text = await requestReport(supabase, p, profile.specialty, { fulltext: body })
           kind = 'report'; hasFulltext = true
@@ -389,7 +408,7 @@ export function HomeSections({
           논문 <span className="font-condiment normal-case text-neon">breakdown</span>
         </h2>
         <PapersSection
-          papers={papers}
+          shelves={shelves}
           loading={papersLoading}
           error={papersError}
           journals={journals}
@@ -397,6 +416,10 @@ export function HomeSections({
           onToggleJournal={handleToggleJournal}
           days={paperDays}
           onDaysChange={setPaperDays}
+          sortKey={sortKey}
+          sortDir={sortDir}
+          onSortKeyChange={setSortKey}
+          onSortDirChange={setSortDir}
           onRefresh={handleRefreshPapers}
           onOpen={handleOpenPaper}
           onUploadPdf={handleUploadPdf}
