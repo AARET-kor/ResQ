@@ -59,3 +59,21 @@ export function jifForJournal(journalTitle: string | null | undefined): number |
   }
   return undefined
 }
+
+/** 전공 학회 공식 홈페이지 (hero 퀵링크). Unknown → 대한의사협회. */
+const SOCIETY_HOMEPAGE: Record<string, string> = {
+  성형외과: 'https://www.plasticsurgery.or.kr',
+  피부과: 'https://www.derma.or.kr',
+  내과: 'https://www.kaim.or.kr',
+  정형외과: 'https://www.koa.or.kr',
+  외과: 'https://www.surgery.or.kr',
+  마취통증의학과: 'https://www.anesthesia.or.kr',
+  응급의학과: 'https://www.emergency.or.kr',
+  신경외과: 'https://www.neurosurgery.or.kr',
+  산부인과: 'https://www.ksog.org',
+  소아청소년과: 'https://www.pediatrics.or.kr',
+}
+
+export function societyFor(specialty: string | null | undefined): string {
+  return SOCIETY_HOMEPAGE[canonicalSpecialty(specialty)] ?? 'https://www.kma.org'
+}

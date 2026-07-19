@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { journalsFor, journalById, jifForJournal } from './sources'
+import { journalsFor, journalById, jifForJournal, societyFor } from './sources'
 
 describe('journal sources', () => {
   it('lists plastic-surgery journals including Thieme OA APS', () => {
@@ -36,5 +36,11 @@ describe('journal sources', () => {
     const kr = journalsFor('성형외과').filter((j) => j.kr && j.indexed !== false)
     expect(kr.map((j) => j.id)).toEqual(expect.arrayContaining(['aps', 'acfs']))
     expect(aaps.homepage).toBeTruthy()
+  })
+  it('resolves a specialty society homepage', () => {
+    expect(societyFor('성형외과')).toContain('plasticsurgery')
+  })
+  it('falls back to 대한의사협회 for unknown specialties', () => {
+    expect(societyFor('우주과')).toContain('kma')
   })
 })
