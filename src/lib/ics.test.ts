@@ -7,7 +7,10 @@ const ev: EventItem = {
   id: 'e1', user_id: 'u1', title: '대한성형외과학회; 춘계, 등록', starts_at: '2026-08-20T09:00:00+09:00',
   ends_at: null, kind: 'conference', location: '코엑스', notes: null,
 }
-const todo: Todo = { id: 't1', user_id: 'u1', title: '초록 제출', done: false, due_date: '2026-08-01', xp_granted: false }
+const todo: Todo = {
+  id: 't1', user_id: 'u1', title: '초록 제출', done: false, due_date: '2026-08-01', xp_granted: false,
+  priority: 'normal', due_time: null,
+}
 const doneTodo: Todo = { ...todo, id: 't2', done: true }
 const noDueTodo: Todo = { ...todo, id: 't3', due_date: null }
 

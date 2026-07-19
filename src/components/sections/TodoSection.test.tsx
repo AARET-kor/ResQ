@@ -5,8 +5,8 @@ import { TodoSection } from './TodoSection'
 import type { Todo } from '../../lib/todos'
 
 const todos: Todo[] = [
-  { id: 't1', user_id: 'u1', title: '회진 준비', done: false, due_date: null, xp_granted: false },
-  { id: 't2', user_id: 'u1', title: '컨퍼런스 발표', done: true, due_date: '2026-07-20', xp_granted: true },
+  { id: 't1', user_id: 'u1', title: '회진 준비', done: false, due_date: null, xp_granted: false, priority: 'normal', due_time: null },
+  { id: 't2', user_id: 'u1', title: '컨퍼런스 발표', done: true, due_date: '2026-07-20', xp_granted: true, priority: 'normal', due_time: null },
 ]
 
 describe('TodoSection', () => {
