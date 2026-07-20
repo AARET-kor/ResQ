@@ -12,6 +12,76 @@ const KIND_DOT: Record<EventKind, string> = {
   other: '#c792ea',
 }
 
+const MONTHS = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월']
+const MAX_DOTS = 3
+
+function todayISO(): string {
+  const d = new Date()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${mm}-${dd}`
+}
+
+function MonthPicker({
+  year,
+  month0,
+  onSelect,
+  onClose,
+}: {
+  year: number
+  month0: number
+  onSelect: (y: number, m0: number) => void
+  onClose: () => void
+}) {
+  const [pickerYear, setPickerYear] = useState(year)
+  return (
+    <div
+      aria-label="월 선택 패널"
+      className="absolute right-0 top-full z-10 mt-2 flex w-[260px] flex-col gap-3 rounded-2xl border border-white/15 bg-[#0B1433] p-4 shadow-xl"
+    >
+      <div className="flex items-center justify-between">
+        <button
+          aria-label="이전 해"
+          type="button"
+          onClick={() => setPickerYear((y) => y - 1)}
+          className="flex h-7 w-7 items-center justify-center rounded-full border border-white/30 transition hover:bg-white/10"
+        >
+          <ArrowLeft size={12} />
+        </button>
+        <span className="font-grotesk text-sm uppercase">{pickerYear}년</span>
+        <button
+          aria-label="다음 해"
+          type="button"
+          onClick={() => setPickerYear((y) => y + 1)}
+          className="flex h-7 w-7 items-center justify-center rounded-full border border-white/30 transition hover:bg-white/10"
+        >
+          <ArrowRight size={12} />
+        </button>
+      </div>
+      <div className="grid grid-cols-4 gap-1.5">
+        {MONTHS.map((label, m0) => {
+          const isCurrent = pickerYear === year && m0 === month0
+          return (
+            <button
+              key={label}
+              type="button"
+              onClick={() => {
+                onSelect(pickerYear, m0)
+                onClose()
+              }}
+              className={`rounded-md px-2 py-1.5 font-mono text-[11px] uppercase transition ${
+                isCurrent ? 'bg-neon text-bg' : 'bg-white/5 text-cream/70 hover:bg-white/10'
+              }`}
+            >
+              {label}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 export function ScheduleSection({
   events,
   year,
@@ -31,6 +101,7 @@ export function ScheduleSection({
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
   const [kind, setKind] = useState<EventKind>('other')
+  const [pickerOpen, setPickerOpen] = useState(false)
 
   const cells = monthGrid(year, month0)
   const byDate = new Map<string, EventItem[]>()
@@ -38,6 +109,8 @@ export function ScheduleSection({
     const d = e.starts_at.slice(0, 10)
     byDate.set(d, [...(byDate.get(d) ?? []), e])
   }
+
+  const today = todayISO()
 
   const prev = () => (month0 === 0 ? onMonthChange(year - 1, 11) : onMonthChange(year, month0 - 1))
   const next = () => (month0 === 11 ? onMonthChange(year + 1, 0) : onMonthChange(year, month0 + 1))
@@ -50,42 +123,69 @@ export function ScheduleSection({
   }
 
   return (
-    <LiquidGlass className="rounded-[24px]">
-      <div className="flex flex-col gap-4 p-6">
+    <LiquidGlass className="rounded-2xl border border-white/15 bg-[#0B1433]">
+      <div className="flex flex-col gap-4 p-6 text-[13px]">
         <div className="flex items-center justify-between">
-          <h3 className="font-grotesk text-2xl uppercase">스케줄</h3>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="h-[6px] w-[6px] bg-neon" />
+            <h3 className="font-grotesk text-xl uppercase">스케줄</h3>
+          </div>
+          <div className="relative flex items-center gap-3">
             <button aria-label="이전 달" onClick={prev}
               className="flex h-8 w-8 items-center justify-center rounded-full border border-white/30 transition hover:bg-white/10">
               <ArrowLeft size={14} />
             </button>
-            <span className="font-grotesk text-sm uppercase">{year}년 {month0 + 1}월</span>
+            <button
+              type="button"
+              aria-label="월 선택"
+              onClick={() => setPickerOpen((v) => !v)}
+              className="rounded-md px-2 py-1 font-grotesk text-sm uppercase transition hover:bg-white/10"
+            >
+              {year}년 {month0 + 1}월
+            </button>
             <button aria-label="다음 달" onClick={next}
               className="flex h-8 w-8 items-center justify-center rounded-full border border-white/30 transition hover:bg-white/10">
               <ArrowRight size={14} />
             </button>
+            {pickerOpen && (
+              <MonthPicker
+                year={year}
+                month0={month0}
+                onSelect={onMonthChange}
+                onClose={() => setPickerOpen(false)}
+              />
+            )}
           </div>
         </div>
 
         {/* Month grid */}
         <div className="grid grid-cols-7 gap-1 font-mono text-[10px] uppercase text-cream/50">
           {['일', '월', '화', '수', '목', '금', '토'].map((d) => (
-            <div key={d} className="px-1 py-0.5 text-center">{d}</div>
+            <div
+              key={d}
+              className={`px-1 py-0.5 text-center ${d === '일' ? 'text-red-300' : d === '토' ? 'text-sky-300' : ''}`}
+            >
+              {d}
+            </div>
           ))}
         </div>
         <div className="grid grid-cols-7 gap-1">
           {cells.map((c) => {
             const dayEvents = byDate.get(c.date) ?? []
+            const isToday = c.date === today
             return (
               <div key={c.date}
-                className={`min-h-[52px] rounded-md p-1 font-mono text-[11px] ${c.inMonth ? 'bg-white/5 text-cream' : 'bg-transparent text-cream/25'}`}>
+                className={`min-h-[64px] rounded-lg p-1 font-mono text-[11px] ${c.inMonth ? 'bg-white/[0.07] text-cream' : 'bg-transparent text-cream/25'} ${isToday ? 'ring-2 ring-neon' : ''}`}>
                 <div>{Number(c.date.slice(8, 10))}</div>
-                <div className="mt-0.5 flex flex-wrap gap-0.5">
-                  {dayEvents.map((e) => (
+                <div className="mt-0.5 flex flex-wrap items-center gap-0.5">
+                  {dayEvents.slice(0, MAX_DOTS).map((e) => (
                     <span key={e.id} title={e.title}
-                      className="h-1.5 w-1.5 rounded-full"
+                      className="h-2 w-2 rounded-full"
                       style={{ background: KIND_DOT[e.kind] }} />
                   ))}
+                  {dayEvents.length > MAX_DOTS && (
+                    <span className="font-mono text-[9px] text-cream/50">+{dayEvents.length - MAX_DOTS}</span>
+                  )}
                 </div>
               </div>
             )
@@ -95,13 +195,14 @@ export function ScheduleSection({
         {/* Month event list */}
         <ul className="flex flex-col gap-2">
           {events.map((e) => (
-            <li key={e.id} className="flex items-center gap-3 rounded-md bg-white/5 px-3 py-2">
-              <span className="h-2 w-2 rounded-full" style={{ background: KIND_DOT[e.kind] }} />
+            <li key={e.id} className="flex items-center gap-3 rounded-md bg-white/[0.07] px-3 py-2">
               <span className="font-mono text-[10px] uppercase text-cream/60">
                 {e.starts_at.slice(5, 10)} {e.starts_at.slice(11, 16)}
               </span>
               <span className="flex-1 font-mono text-sm">{e.title}</span>
-              <span className="font-mono text-[10px] uppercase text-cream/50">{EVENT_KINDS[e.kind]}</span>
+              <span className="font-mono text-[10px] uppercase" style={{ color: KIND_DOT[e.kind] }}>
+                {EVENT_KINDS[e.kind]}
+              </span>
               <button aria-label="일정 삭제" onClick={() => onDelete(e.id)}
                 className="font-mono text-[10px] uppercase text-cream/40 transition hover:text-red-400">
                 삭제

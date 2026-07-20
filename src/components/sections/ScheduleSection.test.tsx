@@ -58,4 +58,26 @@ describe('ScheduleSection', () => {
     await userEvent.click(screen.getByRole('button', { name: '일정 삭제' }))
     expect(onDelete).toHaveBeenCalledWith('e1')
   })
+
+  describe('month picker', () => {
+    it('is closed by default and opens when the month label button is clicked', async () => {
+      render(<ScheduleSection events={[]} year={2026} month0={6}
+        onMonthChange={vi.fn()} onAdd={vi.fn()} onDelete={vi.fn()} />)
+      expect(screen.queryByLabelText('월 선택 패널')).not.toBeInTheDocument()
+      await userEvent.click(screen.getByRole('button', { name: '월 선택' }))
+      expect(screen.getByLabelText('월 선택 패널')).toBeInTheDocument()
+    })
+
+    it('navigates the picker year and selects a month', async () => {
+      const onMonthChange = vi.fn()
+      render(<ScheduleSection events={[]} year={2026} month0={6}
+        onMonthChange={onMonthChange} onAdd={vi.fn()} onDelete={vi.fn()} />)
+      await userEvent.click(screen.getByRole('button', { name: '월 선택' }))
+      const panel = screen.getByLabelText('월 선택 패널')
+      await userEvent.click(within(panel).getByRole('button', { name: '다음 해' }))
+      await userEvent.click(within(panel).getByRole('button', { name: '3월' }))
+      expect(onMonthChange).toHaveBeenCalledWith(2027, 2)
+      expect(screen.queryByLabelText('월 선택 패널')).not.toBeInTheDocument()
+    })
+  })
 })
