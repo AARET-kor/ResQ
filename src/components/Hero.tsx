@@ -3,6 +3,7 @@ import { Mail, Bird, Globe, ArrowLeft, ArrowRight } from 'lucide-react'
 import { LiquidGlass } from './LiquidGlass'
 import { computeDday } from '../lib/dday'
 import { timeOfDayKST, type DayPhase } from '../mascot/daylight'
+import { societyFor } from '../lib/sources'
 import { mascotArt, STAGE_ART } from '../mascot/mascotAssets'
 import type { MascotState } from '../mascot/state'
 import type { Stage } from '../mascot/stage'
@@ -231,11 +232,21 @@ export function Hero({
           </nav>
           <div className="flex items-center gap-2">
             <div className="hidden gap-2 lg:flex">
-              {[Mail, Bird, Globe].map((Icon, i) => (
-                <LiquidGlass key={i} className="rounded-[1rem]">
-                  <button className="flex h-[48px] w-[48px] items-center justify-center transition hover:bg-white/10">
+              {[
+                { Icon: Mail, label: 'Gmail 열기', href: 'https://mail.google.com', external: true },
+                { Icon: Bird, label: '일정 · 캘린더 연동', href: '#schedule', external: false },
+                { Icon: Globe, label: '전공 학회 홈페이지', href: societyFor(profile.specialty), external: true },
+              ].map(({ Icon, label, href, external }) => (
+                <LiquidGlass key={label} className="rounded-[1rem]">
+                  <a
+                    href={href}
+                    aria-label={label}
+                    title={label}
+                    {...(external ? { target: '_blank', rel: 'noreferrer' } : {})}
+                    className="flex h-[48px] w-[48px] items-center justify-center transition hover:bg-white/10 hover:text-neon"
+                  >
                     <Icon size={18} />
-                  </button>
+                  </a>
                 </LiquidGlass>
               ))}
             </div>

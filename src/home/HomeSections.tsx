@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../auth/AuthProvider'
 import type { Profile } from '../lib/profile'
-import { listTodos, addTodo, setTodoDone, deleteTodo, type Todo } from '../lib/todos'
+import { listTodos, addTodo, setTodoDone, deleteTodo, type Todo, type TodoPriority } from '../lib/todos'
+import { requestTodoExtraction, type ExtractedTodo } from '../lib/todoExtract'
 import { listEventsInRange, addEvent, deleteEvent, type EventItem, type EventKind } from '../lib/events'
 import { monthRangeISO } from '../lib/calendar'
 import { buildICS } from '../lib/ics'
@@ -47,6 +48,8 @@ export function HomeSections({
   const [scanning, setScanning] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [extracted, setExtracted] = useState<ExtractedEvent[]>([])
+  const [todoExtracting, setTodoExtracting] = useState(false)
+  const [extractedTodos, setExtractedTodos] = useState<ExtractedTodo[]>([])
   const userId = profile.id
 
   useEffect(() => {
@@ -86,10 +89,39 @@ export function HomeSections({
     return () => { active = false }
   }, [team])
 
-  const handleAddTodo = async (title: string) => {
+  const handleAddTodo = async (
+    title: string,
+    opts: { priority: TodoPriority; dueDate: string | null; dueTime: string | null },
+  ) => {
     try {
-      const t = await addTodo(supabase, userId, title, null)
+      const t = await addTodo(supabase, userId, title, opts.dueDate, {
+        priority: opts.priority,
+        dueTime: opts.dueTime,
+      })
       setTodos((s) => [t, ...s])
+    } catch (e) { console.error(e) }
+  }
+
+  const handleExtractTodos = async (input: { text?: string; imageBase64?: string; mediaType?: string }) => {
+    setTodoExtracting(true)
+    try {
+      const found = await requestTodoExtraction(supabase, input, profile.specialty)
+      setExtractedTodos(found)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setTodoExtracting(false)
+    }
+  }
+
+  const handleAddExtractedTodo = async (t: ExtractedTodo) => {
+    try {
+      const added = await addTodo(supabase, userId, t.title, t.due_date, {
+        priority: t.priority,
+        dueTime: t.due_time,
+      })
+      setTodos((s) => [added, ...s])
+      setExtractedTodos((s) => s.filter((x) => x !== t))
     } catch (e) { console.error(e) }
   }
 
@@ -410,7 +442,17 @@ export function HomeSections({
           오늘의 <span className="font-condiment normal-case text-neon">plan</span>
         </h2>
         <div className="grid gap-6 lg:grid-cols-[1fr_1.6fr]">
-          <TodoSection todos={todos} onAdd={handleAddTodo} onToggle={handleToggleTodo} onDelete={handleDeleteTodo} />
+          <TodoSection
+            todos={todos}
+            onAdd={handleAddTodo}
+            onToggle={handleToggleTodo}
+            onDelete={handleDeleteTodo}
+            onExtract={handleExtractTodos}
+            extracting={todoExtracting}
+            extracted={extractedTodos}
+            onAddExtracted={handleAddExtractedTodo}
+            onDismissExtracted={() => setExtractedTodos([])}
+          />
           <ScheduleSection events={events} year={year} month0={month0}
             onMonthChange={handleMonthChange} onAdd={handleAddEvent} onDelete={handleDeleteEvent} />
         </div>
