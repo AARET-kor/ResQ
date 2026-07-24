@@ -1,6 +1,10 @@
+import { useState } from 'react'
 import { LiquidGlass } from '../LiquidGlass'
 import { EVENT_KINDS } from '../../lib/events'
 import type { ExtractedEvent } from '../../lib/gmail'
+import type { GmailAuditEvent } from '../../lib/privacy'
+import { GmailConsentDialog } from '../privacy/GmailConsentDialog'
+import { PrivacyPolicyModal } from '../privacy/PrivacyPolicyModal'
 
 /**
  * External calendar integration card: push this month to Google Calendar,
@@ -17,8 +21,16 @@ export function SyncPanel({
   onScanGmail,
   scanning,
   extracted,
+  addingExtracted = false,
   onAddExtracted,
   onDismissExtracted,
+  gmailConsentGranted = false,
+  consentBusy = false,
+  audits = [],
+  deletingAudits = false,
+  onGrantConsent,
+  onRevokeConsent,
+  onDeleteAudits,
 }: {
   googleConnected: boolean
   onSyncMonth: () => void
@@ -29,10 +41,22 @@ export function SyncPanel({
   onScanGmail: () => void
   scanning: boolean
   extracted: ExtractedEvent[]
+  addingExtracted?: boolean
   onAddExtracted: (ev: ExtractedEvent) => void
   onDismissExtracted: () => void
+  gmailConsentGranted?: boolean
+  consentBusy?: boolean
+  audits?: GmailAuditEvent[]
+  deletingAudits?: boolean
+  onGrantConsent?: () => Promise<boolean>
+  onRevokeConsent?: () => void
+  onDeleteAudits?: () => void
 }) {
+  const [consentOpen, setConsentOpen] = useState(false)
+  const [policyOpen, setPolicyOpen] = useState(false)
+
   return (
+    <>
     <LiquidGlass className="rounded-[24px]">
       <div className="flex flex-col gap-4 p-6">
         <h3 className="font-grotesk text-2xl uppercase">외부 캘린더 연동</h3>
@@ -78,11 +102,27 @@ export function SyncPanel({
         <div className="flex flex-col gap-2 rounded-md bg-white/5 px-4 py-3">
           <span className="font-mono text-[10px] uppercase text-cream/50">Gmail</span>
           {googleConnected && (
-            <button onClick={onScanGmail} disabled={scanning}
-              className="self-start rounded-md bg-neon px-4 py-2 font-grotesk text-xs uppercase text-bg transition hover:opacity-90 disabled:opacity-50">
-              Gmail에서 일정 가져오기
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button onClick={() => gmailConsentGranted ? onScanGmail() : setConsentOpen(true)}
+                disabled={scanning || consentBusy}
+                className="rounded-md bg-neon px-4 py-2 font-grotesk text-xs uppercase text-bg transition hover:opacity-90 disabled:opacity-50">
+                {gmailConsentGranted ? 'Gmail에서 일정 가져오기' : '동의 후 Gmail 사용'}
+              </button>
+              <button type="button" onClick={() => setPolicyOpen(true)}
+                className="font-mono text-[10px] text-cream/60 underline">
+                개인정보 처리 안내
+              </button>
+              {gmailConsentGranted && (
+                <button type="button" onClick={onRevokeConsent} disabled={consentBusy}
+                  className="font-mono text-[10px] text-amber-300/80 underline disabled:opacity-40">
+                  동의 철회
+                </button>
+              )}
+            </div>
           )}
+          <span className="font-mono text-[10px] leading-relaxed text-amber-200/70">
+            환자정보가 포함된 메일에는 사용하지 마세요. 이메일 원문은 ResQ DB에 저장하지 않습니다.
+          </span>
           {scanning && <span className="font-mono text-xs text-cream/60">메일을 읽는 중…</span>}
         </div>
 
@@ -109,8 +149,9 @@ export function SyncPanel({
                   <span className="flex-1 font-mono text-sm">{ev.title}</span>
                   <span className="font-mono text-[10px] uppercase text-cream/50">{EVENT_KINDS[ev.kind]}</span>
                   <button onClick={() => onAddExtracted(ev)}
-                    className="rounded-md border border-white/30 px-3 py-1 font-grotesk text-[10px] uppercase text-cream transition hover:bg-white/10">
-                    일정에 추가
+                    disabled={addingExtracted}
+                    className="rounded-md border border-white/30 px-3 py-1 font-grotesk text-[10px] uppercase text-cream transition hover:bg-white/10 disabled:cursor-wait disabled:opacity-50">
+                    {addingExtracted ? '추가 중…' : '일정에 추가'}
                   </button>
                 </li>
               ))}
@@ -119,5 +160,22 @@ export function SyncPanel({
         )}
       </div>
     </LiquidGlass>
+    {consentOpen && onGrantConsent && (
+      <GmailConsentDialog
+        busy={consentBusy}
+        onConfirm={onGrantConsent}
+        onShowPolicy={() => setPolicyOpen(true)}
+        onClose={() => setConsentOpen(false)}
+      />
+    )}
+    {policyOpen && (
+      <PrivacyPolicyModal
+        audits={audits}
+        deleting={deletingAudits}
+        onDeleteAudits={() => onDeleteAudits?.()}
+        onClose={() => setPolicyOpen(false)}
+      />
+    )}
+    </>
   )
 }

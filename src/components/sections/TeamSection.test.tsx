@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TeamSection } from './TeamSection'
-import type { Team, TeamTask } from '../../lib/team'
+import type { Team, TeamMember, TeamTask } from '../../lib/team'
 import type { EventItem } from '../../lib/events'
 
 const team: Team = { id: 'tm1', name: '내과 의국', code: 'ABC123', created_by: 'u1' }
@@ -13,6 +13,10 @@ const tasks: TeamTask[] = [
 ]
 const conferences: EventItem[] = [
   { id: 'e1', user_id: 'u1', title: '대한내과학회 추계', starts_at: '2026-07-25T09:00:00+09:00', ends_at: null, kind: 'conference', location: null, notes: null },
+]
+const members: TeamMember[] = [
+  { team_id: 'tm1', user_id: 'u1', role: 'owner', nickname: '길동' },
+  { team_id: 'tm1', user_id: 'u2', role: 'professor', nickname: '교수님' },
 ]
 
 describe('TeamSection — no team', () => {
@@ -70,5 +74,30 @@ describe('TeamSection — with team', () => {
   it('lists this month conferences', () => {
     renderBoard()
     expect(screen.getByText('대한내과학회 추계')).toBeInTheDocument()
+  })
+  it('lets only the owner change roles and transfer ownership', async () => {
+    const onChangeMemberRole = vi.fn()
+    const onTransferOwnership = vi.fn()
+    renderBoard({
+      team: { ...team, current_role: 'owner' },
+      currentUserId: 'u1',
+      members,
+      onChangeMemberRole,
+      onTransferOwnership,
+    })
+    await userEvent.selectOptions(screen.getByLabelText('교수님 역할'), 'admin')
+    expect(onChangeMemberRole).toHaveBeenCalledWith(members[1], 'admin')
+    await userEvent.click(screen.getByRole('button', { name: '소유권 이전' }))
+    expect(onTransferOwnership).toHaveBeenCalledWith(members[1])
+  })
+  it('hides task deletion from a member who did not create the task', () => {
+    renderBoard({
+      team: { ...team, current_role: 'member' },
+      currentUserId: 'u2',
+      members: members.map((member) => (
+        member.user_id === 'u2' ? { ...member, role: 'member' as const } : member
+      )),
+    })
+    expect(screen.queryByRole('button', { name: '팀 할일 삭제' })).not.toBeInTheDocument()
   })
 })

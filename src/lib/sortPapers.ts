@@ -1,10 +1,12 @@
 import type { Paper } from './pubmed'
 import { jifForJournal } from './sources'
 
-export type PaperSortKey = 'date' | 'cited' | 'jif'
+export type PaperSortKey = 'recommended' | 'hot' | 'date' | 'cited' | 'jif'
 export type SortDir = 'asc' | 'desc'
 
 export const SORT_LABEL: Record<PaperSortKey, string> = {
+  recommended: '추천순',
+  hot: '화제성순',
   date: '최신순',
   cited: '피인용순',
   jif: 'IF순 (참고)',
@@ -14,6 +16,10 @@ export const SORT_LABEL: Record<PaperSortKey, string> = {
 export function sortPapers(papers: Paper[], key: PaperSortKey, dir: SortDir): Paper[] {
   const sign = dir === 'desc' ? -1 : 1
   return [...papers].sort((a, b) => {
+    if (key === 'recommended') {
+      return sign * ((a.discoveryScore ?? 0) - (b.discoveryScore ?? 0))
+    }
+    if (key === 'hot') return sign * ((a.hotScore ?? 0) - (b.hotScore ?? 0))
     if (key === 'jif') {
       const ja = jifForJournal(a.journal)
       const jb = jifForJournal(b.journal)

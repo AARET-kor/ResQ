@@ -43,6 +43,7 @@ const base = {
 describe('PapersSection', () => {
   it('renders shelves and a refresh button', () => {
     render(<PapersSection {...base} />)
+    expect(screen.getByText(/MEDLINE.*Europe PMC.*OpenAlex/)).toBeInTheDocument()
     expect(screen.getByText('성형외과 신착')).toBeInTheDocument()
     expect(screen.getByText('Semaglutide outcomes')).toBeInTheDocument()
     expect(screen.getByText(/NEJM/)).toBeInTheDocument()
@@ -127,6 +128,40 @@ describe('PapersSection', () => {
     render(<PapersSection {...base} selected={papers[0]} selectedTitle={papers[0].title}
       analysis={'## 요약\n내용'} analysisKind="report" />)
     expect(screen.getByRole('link', { name: /리포트 다운로드/ })).toBeInTheDocument()
+  })
+
+  it('shows source-graph related papers and opens one', async () => {
+    const onOpen = vi.fn()
+    const related = {
+      ...papers[1],
+      pmid: '333',
+      title: 'Related evidence paper',
+      sourceProvider: 'OpenAlex' as const,
+      isOpenAccess: true,
+    }
+    render(<PapersSection {...base} selected={papers[0]} selectedTitle={papers[0].title}
+      relatedPapers={[related]} onOpen={onOpen} />)
+    await userEvent.click(screen.getByRole('button', { name: /연관 논문 1/ }))
+    expect(screen.getByText('Related evidence paper')).toBeInTheDocument()
+    await userEvent.click(screen.getByText('Related evidence paper'))
+    expect(onOpen).toHaveBeenCalledWith(related)
+  })
+
+  it('generates and displays source-grounded research ideation', async () => {
+    const onGenerateIdeation = vi.fn()
+    const { rerender } = render(
+      <PapersSection {...base} selected={papers[0]} selectedTitle={papers[0].title}
+        onGenerateIdeation={onGenerateIdeation} />,
+    )
+    await userEvent.click(screen.getByRole('button', { name: '연구 아이디에이션' }))
+    await userEvent.click(screen.getByRole('button', { name: '아이디에이션 생성' }))
+    expect(onGenerateIdeation).toHaveBeenCalled()
+    rerender(
+      <PapersSection {...base} selected={papers[0]} selectedTitle={papers[0].title}
+        onGenerateIdeation={onGenerateIdeation} ideation="## 검증 가능한 가설 3개" />,
+    )
+    expect(screen.getByText('## 검증 가능한 가설 3개')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /아이디에이션 다운로드/ })).toBeInTheDocument()
   })
 
   it('renders specialty chips with abbrs; primary is locked, others toggle', async () => {

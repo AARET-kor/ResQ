@@ -17,6 +17,9 @@ export interface Profile {
   streak_days?: number | null
   ics_token?: string | null
   interests?: string | null
+  gmail_ai_consent_at?: string | null
+  gmail_ai_consent_revoked_at?: string | null
+  privacy_policy_version?: string | null
 }
 
 export async function getProfile(client: SupabaseClient, userId: string): Promise<Profile | null> {

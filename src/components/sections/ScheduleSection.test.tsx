@@ -51,6 +51,16 @@ describe('ScheduleSection', () => {
       kind: 'surgery',
     })
   })
+  it('keeps the event draft when saving fails', async () => {
+    const onAdd = vi.fn().mockResolvedValue(false)
+    render(<ScheduleSection events={[]} year={2026} month0={6}
+      onMonthChange={vi.fn()} onAdd={onAdd} onDelete={vi.fn()} />)
+    await userEvent.type(screen.getByLabelText('일정 제목'), '저장 재시도')
+    await userEvent.type(screen.getByLabelText('날짜'), '2026-07-20')
+    await userEvent.type(screen.getByLabelText('시간'), '09:00')
+    await userEvent.click(screen.getByRole('button', { name: '일정 추가' }))
+    expect(screen.getByLabelText('일정 제목')).toHaveValue('저장 재시도')
+  })
   it('deletes an event', async () => {
     const onDelete = vi.fn()
     render(<ScheduleSection events={events} year={2026} month0={6}

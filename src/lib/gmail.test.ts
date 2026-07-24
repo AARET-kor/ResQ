@@ -24,6 +24,23 @@ describe('listRecentEmailTexts', () => {
     const fetcher = vi.fn().mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) })
     expect(await listRecentEmailTexts('tok', fetcher as any)).toEqual([])
   })
+  it('redacts patient identifiers before returning email text', async () => {
+    const bodyB64 = btoa(unescape(encodeURIComponent('환자명: 김철수 등록번호 MRN-12345 010-1234-5678')))
+      .replace(/\+/g, '-').replace(/\//g, '_')
+    const fetcher = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ messages: [{ id: 'm1' }] }) })
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({
+        payload: {
+          headers: [{ name: 'Subject', value: '환자명: 이영희 일정' }],
+          parts: [{ mimeType: 'text/plain', body: { data: bodyB64 } }],
+        },
+      }) })
+    const [email] = await listRecentEmailTexts('tok', fetcher as any)
+    expect(email.subject).not.toContain('이영희')
+    expect(email.body).not.toContain('김철수')
+    expect(email.body).not.toContain('MRN-12345')
+    expect(email.body).not.toContain('010-1234-5678')
+  })
   it('throws on 401', async () => {
     const fetcher = vi.fn().mockResolvedValueOnce({ ok: false, status: 401 })
     await expect(listRecentEmailTexts('tok', fetcher as any)).rejects.toThrow()
@@ -41,6 +58,18 @@ describe('requestEventExtraction', () => {
   it('throws a friendly error when the function is unreachable', async () => {
     const client = { functions: { invoke: vi.fn().mockResolvedValue({ data: null, error: { message: 'x' } }) } } as any
     await expect(requestEventExtraction(client, [], null)).rejects.toThrow(/추출 서버/)
+  })
+  it('surfaces a structured Edge Function error to the user', async () => {
+    const context = Response.json(
+      { error: 'Gmail AI 처리에 대한 명시적 동의가 필요합니다.' },
+      { status: 403 },
+    )
+    const client = {
+      functions: {
+        invoke: vi.fn().mockResolvedValue({ data: null, error: { context } }),
+      },
+    } as any
+    await expect(requestEventExtraction(client, [], null)).rejects.toThrow(/명시적 동의/)
   })
   it('drops malformed LLM candidates (missing/invalid fields) instead of crashing later', async () => {
     const invoke = vi.fn().mockResolvedValue({

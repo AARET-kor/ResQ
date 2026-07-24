@@ -2,6 +2,8 @@ import { canonicalSpecialty } from '../mascot/roster'
 
 export interface Paper {
   pmid: string
+  doi?: string | null
+  openAlexId?: string | null
   title: string
   journal: string
   year: string
@@ -12,6 +14,16 @@ export interface Paper {
   citedByCount?: number
   src?: string          // MED | PMC | PPR …
   date?: string         // YYYY-MM-DD first publication date (day-level sorting)
+  publicationTypes?: string[]
+  isOpenAccess?: boolean
+  oaUrl?: string | null
+  isRetracted?: boolean
+  fwci?: number | null
+  sourceProvider?: 'Europe PMC' | 'OpenAlex' | 'PubMed'
+  evidenceLevel?: 'guideline' | 'systematic-review' | 'rct' | 'clinical-study' | 'review' | 'other' | 'preprint'
+  discoveryScore?: number
+  hotScore?: number
+  qualitySignals?: string[]
 }
 
 /** 전공 → PubMed 검색어 (config). Unmapped → generic medicine. */

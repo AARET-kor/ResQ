@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Profile } from './profile'
 
 export type TodoPriority = 'high' | 'normal' | 'low'
 
@@ -57,16 +58,18 @@ export async function setTodoDone(
   client: SupabaseClient,
   id: string,
   done: boolean,
-  xpGranted: boolean,
-): Promise<Todo> {
-  const { data, error } = await client
-    .from('todos')
-    .update({ done, xp_granted: xpGranted })
-    .eq('id', id)
-    .select()
-    .single()
+): Promise<{ todo: Todo; profile: Profile; xpGrantedNow: boolean }> {
+  const { data, error } = await client.rpc('set_todo_done_with_xp', {
+    p_todo_id: id,
+    p_done: done,
+  })
   if (error) throw error
-  return data as Todo
+  const result = data as { todo: Todo; profile: Profile; xp_granted_now: boolean }
+  return {
+    todo: result.todo,
+    profile: result.profile,
+    xpGrantedNow: result.xp_granted_now,
+  }
 }
 
 export async function deleteTodo(client: SupabaseClient, id: string): Promise<void> {

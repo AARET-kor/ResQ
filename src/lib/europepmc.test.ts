@@ -6,6 +6,7 @@ const HIT = {
   title: 'DIEP flap outcomes', authorString: 'Kim J, Lee S.',
   journalInfo: { journal: { title: 'Arch Plast Surg' } }, pubYear: '2026',
   citedByCount: 42, abstractText: 'Background...', doi: '10.1/abc',
+  pubTypeList: { pubType: ['Randomized Controlled Trial'] }, isOpenAccess: 'Y',
 }
 const PPR = {
   id: 'PPR123', source: 'PPR', title: 'Preprint on rhinoplasty', authorString: 'Park H.',
@@ -16,6 +17,10 @@ describe('epmcQueryFor', () => {
   it('builds specialty and journal-scoped queries with a date window', () => {
     const q1 = epmcQueryFor('성형외과', [], 7)
     expect(q1).toContain('"plastic surgery"')
+    expect(q1).toContain('TITLE_ABS:')
+    expect(q1).toContain('SRC:MED')
+    expect(q1).toContain('HAS_ABSTRACT:Y')
+    expect(q1).toContain('Retracted Publication')
     expect(q1).toContain('FIRST_PDATE:[')
     const q2 = epmcQueryFor('성형외과', ['Arch Plast Surg'], undefined)
     expect(q2).toContain('JOURNAL:"Arch Plast Surg"')
@@ -29,6 +34,15 @@ describe('epmcQueryFor', () => {
     const fallback = epmcQueryFor('피부과', [], undefined)
     expect(fallback).toContain('"dermatology"')
   })
+  it('adds evidence and open-access filters for curated shelves', () => {
+    expect(epmcQueryFor('내과', [], 1825, 'evidence')).toContain('Meta-Analysis')
+    expect(epmcQueryFor('내과', [], 365, 'open-access')).toContain('OPEN_ACCESS:Y')
+  })
+  it('can combine journal filters with the specialty query', () => {
+    const query = epmcQueryFor('성형외과', ['Lancet'], 365, 'latest', true)
+    expect(query).toContain('JOURNAL:"Lancet"')
+    expect(query).toContain('TITLE_ABS:"plastic surgery"')
+  })
 })
 
 describe('searchEuropePmc', () => {
@@ -40,6 +54,7 @@ describe('searchEuropePmc', () => {
     expect(papers[0]).toMatchObject({
       pmid: '41234567', pmcid: 'PMC9999999', journal: 'Arch Plast Surg',
       citedByCount: 42, authors: 'Kim J, Lee S.', url: 'https://doi.org/10.1/abc',
+      doi: '10.1/abc', evidenceLevel: 'rct', isOpenAccess: true,
     })
     expect(papers[1].pmid).toBe('PPR123')
     expect(papers[1].url).toContain('europepmc.org/article/PPR/PPR123')

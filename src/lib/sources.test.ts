@@ -2,8 +2,9 @@ import { describe, it, expect } from 'vitest'
 import { journalsFor, journalById, jifForJournal, societyFor } from './sources'
 
 describe('journal sources', () => {
-  it('lists plastic-surgery journals including Thieme OA APS', () => {
+  it('lists core medical and plastic-surgery journals including Thieme OA APS', () => {
     const js = journalsFor('성형외과')
+    expect(js.some((j) => j.id === 'nejm')).toBe(true)
     expect(js.length).toBeGreaterThanOrEqual(5)
     const aps = js.find((j) => j.id === 'aps')!
     expect(aps.oa).toBe(true)
@@ -11,7 +12,7 @@ describe('journal sources', () => {
     expect(aps.ta).toBe('Arch Plast Surg')
   })
   it('resolves aliases and unknown specialties', () => {
-    expect(journalsFor('마취과')).toEqual([]) // no registry yet → empty
+    expect(journalsFor('마취과').some((j) => j.id === 'nejm')).toBe(true)
     expect(journalsFor(null)).toEqual([])
   })
   it('looks a journal up by id within a specialty', () => {

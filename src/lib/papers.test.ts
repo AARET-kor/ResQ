@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getAnalysis, saveAnalysis, requestAnalysis, requestReport, listMyReports, type PaperAnalysis } from './papers'
+import { getAnalysis, saveAnalysis, requestAnalysis, requestPaperIdeation, requestReport, listMyReports, type PaperAnalysis } from './papers'
 import type { Paper } from './pubmed'
 
 const paper: Paper = {
@@ -64,6 +64,18 @@ function fakeClientList(rows: any[]) {
 }
 
 describe('papers v2', () => {
+  it('requestPaperIdeation sends a bounded ideation request', async () => {
+    const c = fakeClient(null, { data: { analysis: '## 가설' }, error: null })
+    const text = await requestPaperIdeation(c, paper, '성형외과')
+    expect(text).toBe('## 가설')
+    expect(c.calls[0].args).toMatchObject({
+      mode: 'ideation',
+      title: 'T',
+      abstract: 'A',
+      specialty: '성형외과',
+    })
+  })
+
   it('requestReport sends report mode with fulltext', async () => {
     const c = fakeClient(null, { data: { analysis: '## 요약' }, error: null })
     const text = await requestReport(c, paper, '성형외과', { fulltext: 'BODY TEXT' })
@@ -73,8 +85,20 @@ describe('papers v2', () => {
   })
   it('requestReport sends pdf payloads', async () => {
     const c = fakeClient(null)
-    await requestReport(c, paper, '성형외과', { pdfBase64: 'QUJD' })
+    await requestReport(c, paper, '성형외과', {
+      pdfBase64: 'QUJD',
+      pdfMediaType: 'application/pdf',
+    })
     expect(c.calls[0].args.pdfBase64).toBe('QUJD')
+    expect(c.calls[0].args.pdfMediaType).toBe('application/pdf')
+  })
+  it('surfaces a structured edge-function error', async () => {
+    const context = Response.json({ error: 'PDF는 50MB 이하만 업로드할 수 있습니다.' }, { status: 413 })
+    const c = fakeClient(null, { data: null, error: { context } })
+    await expect(requestReport(c, paper, '성형외과', {
+      pdfBase64: 'QUJD',
+      pdfMediaType: 'application/pdf',
+    })).rejects.toThrow(/50MB/)
   })
   it('saveAnalysis persists kind, fulltext flag and source', async () => {
     const c = fakeClient(null)

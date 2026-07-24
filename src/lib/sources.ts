@@ -14,6 +14,18 @@ export interface JournalSource {
   kr?: boolean       // 한국 학회지 (dedicated Korean-journal shelf)
 }
 
+/** Cross-specialty, editorially curated high-signal medical journals. */
+export const CORE_MEDICAL_JOURNALS: JournalSource[] = [
+  { id: 'nejm', label: 'New England Journal of Medicine', ta: 'N Engl J Med', oa: false, publisher: 'Massachusetts Medical Society' },
+  { id: 'lancet', label: 'The Lancet', ta: 'Lancet', oa: false, publisher: 'Elsevier' },
+  { id: 'jama', label: 'JAMA', ta: 'JAMA', oa: false, publisher: 'American Medical Association' },
+  { id: 'bmj', label: 'The BMJ', ta: 'BMJ', oa: false, publisher: 'BMJ Publishing Group' },
+  { id: 'natmed', label: 'Nature Medicine', ta: 'Nat Med', oa: false, publisher: 'Nature Portfolio' },
+  { id: 'aim', label: 'Annals of Internal Medicine', ta: 'Ann Intern Med', oa: false, publisher: 'American College of Physicians' },
+  { id: 'plosmed', label: 'PLOS Medicine', ta: 'PLoS Med', oa: true, publisher: 'PLOS' },
+  { id: 'cochrane', label: 'Cochrane Reviews', ta: 'Cochrane Database Syst Rev', oa: false, publisher: 'Wiley' },
+]
+
 /**
  * 전공별 학회지/저널 레지스트리 (config). 성형외과 파일럿.
  * 유료지는 PubMed 메타데이터+초록까지만 — 본문 스크래핑은 하지 않는다.
@@ -42,7 +54,9 @@ export const SPECIALTY_JOURNALS: Record<string, JournalSource[]> = {
 }
 
 export function journalsFor(specialty: string | null | undefined): JournalSource[] {
-  return SPECIALTY_JOURNALS[canonicalSpecialty(specialty)] ?? []
+  if (!specialty) return []
+  const specialtyJournals = SPECIALTY_JOURNALS[canonicalSpecialty(specialty)] ?? []
+  return [...CORE_MEDICAL_JOURNALS, ...specialtyJournals]
 }
 
 export function journalById(specialty: string | null | undefined, id: string): JournalSource | undefined {
@@ -58,6 +72,24 @@ export function jifForJournal(journalTitle: string | null | undefined): number |
     if (hit?.jif != null) return hit.jif
   }
   return undefined
+}
+
+function matchesJournal(source: JournalSource, title: string): boolean {
+  const normalized = title.toLowerCase()
+  return source.ta.toLowerCase() === normalized ||
+    source.label.toLowerCase().includes(normalized) ||
+    normalized.includes(source.ta.toLowerCase())
+}
+
+/** Stable editorial trust tier; unlike JIF this does not pretend to be a live metric. */
+export function trustedJournalTier(journalTitle: string | null | undefined): 1 | 2 | 3 | null {
+  if (!journalTitle) return null
+  if (CORE_MEDICAL_JOURNALS.some((journal) => matchesJournal(journal, journalTitle))) return 1
+  for (const journals of Object.values(SPECIALTY_JOURNALS)) {
+    const match = journals.find((journal) => matchesJournal(journal, journalTitle))
+    if (match) return match.indexed === false ? 3 : 2
+  }
+  return null
 }
 
 /** 전공 학회 공식 홈페이지 (hero 퀵링크). Unknown → 대한의사협회. */

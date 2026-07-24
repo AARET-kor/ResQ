@@ -15,6 +15,7 @@ const base = {
   extracted: [] as ExtractedEvent[],
   onAddExtracted: vi.fn(),
   onDismissExtracted: vi.fn(),
+  gmailConsentGranted: true,
 }
 
 describe('SyncPanel', () => {
@@ -50,5 +51,24 @@ describe('SyncPanel', () => {
     expect(onAddExtracted).toHaveBeenCalledWith(extracted[0])
     await userEvent.click(screen.getByRole('button', { name: '닫기' }))
     expect(onDismissExtracted).toHaveBeenCalled()
+  })
+
+  it('requires explicit acknowledgements before granting Gmail AI consent', async () => {
+    const onGrantConsent = vi.fn().mockResolvedValue(true)
+    render(
+      <SyncPanel
+        {...base}
+        gmailConsentGranted={false}
+        onGrantConsent={onGrantConsent}
+      />,
+    )
+    await userEvent.click(screen.getByRole('button', { name: /동의 후 Gmail 사용/ }))
+    const confirm = screen.getByRole('button', { name: '동의하고 사용' })
+    expect(confirm).toBeDisabled()
+    const checks = screen.getAllByRole('checkbox')
+    for (const checkbox of checks) await userEvent.click(checkbox)
+    expect(confirm).toBeEnabled()
+    await userEvent.click(confirm)
+    expect(onGrantConsent).toHaveBeenCalledOnce()
   })
 })

@@ -1,6 +1,19 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Paper } from './pubmed'
 
+async function edgeFunctionMessage(error: unknown, fallback: string): Promise<string> {
+  const context = (error as { context?: unknown } | null)?.context
+  if (context instanceof Response) {
+    try {
+      const body = await context.clone().json() as { error?: unknown }
+      if (typeof body.error === 'string' && body.error.trim()) return body.error
+    } catch {
+      // Fall through to the stable client-facing fallback.
+    }
+  }
+  return fallback
+}
+
 export interface PaperAnalysis {
   id: string
   user_id: string
@@ -40,7 +53,33 @@ export async function requestAnalysis(
     body: { title: paper.title, abstract: paper.abstract, specialty },
   })
   if (error || !data?.analysis) {
-    throw new Error('분석 서버 오류 — ANTHROPIC_API_KEY 시크릿 미설정 또는 함수 미배포일 수 있습니다.')
+    throw new Error(await edgeFunctionMessage(
+      error,
+      '분석 서버 오류 — ANTHROPIC_API_KEY 시크릿 미설정 또는 함수 미배포일 수 있습니다.',
+    ))
+  }
+  return data.analysis as string
+}
+
+/** Generate source-grounded research questions and feasible study designs. */
+export async function requestPaperIdeation(
+  client: SupabaseClient,
+  paper: Paper,
+  specialty: string | null,
+): Promise<string> {
+  const { data, error } = await client.functions.invoke('analyze-paper', {
+    body: {
+      mode: 'ideation',
+      title: paper.title,
+      abstract: paper.abstract,
+      specialty,
+    },
+  })
+  if (error || !data?.analysis) {
+    throw new Error(await edgeFunctionMessage(
+      error,
+      '아이디에이션 서버 오류 — AI 함수 설정을 확인해주세요.',
+    ))
   }
   return data.analysis as string
 }
@@ -76,7 +115,7 @@ export async function requestReport(
   client: SupabaseClient,
   paper: Paper,
   specialty: string | null,
-  input: { fulltext?: string; pdfBase64?: string },
+  input: { fulltext?: string; pdfBase64?: string; pdfMediaType?: string },
 ): Promise<string> {
   const { data, error } = await client.functions.invoke('analyze-paper', {
     body: {
@@ -88,7 +127,10 @@ export async function requestReport(
     },
   })
   if (error || !data?.analysis) {
-    throw new Error('분석 서버 오류 — ANTHROPIC_API_KEY 시크릿 미설정 또는 함수 미배포일 수 있습니다.')
+    throw new Error(await edgeFunctionMessage(
+      error,
+      '분석 서버 오류 — ANTHROPIC_API_KEY 시크릿 미설정 또는 함수 미배포일 수 있습니다.',
+    ))
   }
   return data.analysis as string
 }

@@ -5,6 +5,18 @@ function fakeClient(rows: Todo[]) {
   const calls: { op: string; args: any }[] = []
   const client = {
     calls,
+    rpc: (fn: string, args: any) => {
+      calls.push({ op: `rpc:${fn}`, args })
+      const row = rows.find((todo) => todo.id === args.p_todo_id) ?? t1
+      return Promise.resolve({
+        data: {
+          todo: { ...row, done: args.p_done, xp_granted: args.p_done || row.xp_granted },
+          profile: { id: 'u1', xp: 8 },
+          xp_granted_now: args.p_done && !row.xp_granted,
+        },
+        error: null,
+      })
+    },
     from: () => ({
       select: () => ({
         eq: () => ({
@@ -64,11 +76,16 @@ describe('todos data access', () => {
     expect(c.calls[0].args.due_time).toBe('07:30')
     expect(c.calls[0].args.due_date).toBe('2026-07-21')
   })
-  it('sets done state and xp_granted', async () => {
+  it('sets done state and awards XP through the server RPC', async () => {
     const c = fakeClient([t1])
-    const t = await setTodoDone(c, 't1', true, true)
-    expect(t.done).toBe(true)
-    expect(t.xp_granted).toBe(true)
+    const result = await setTodoDone(c, 't1', true)
+    expect(result.todo.done).toBe(true)
+    expect(result.todo.xp_granted).toBe(true)
+    expect(result.xpGrantedNow).toBe(true)
+    expect(c.calls[0]).toEqual({
+      op: 'rpc:set_todo_done_with_xp',
+      args: { p_todo_id: 't1', p_done: true },
+    })
   })
   it('deletes a todo', async () => {
     const c = fakeClient([t1])

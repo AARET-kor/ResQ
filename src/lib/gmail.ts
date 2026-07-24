@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { EventKind } from './events'
 import { GOOGLE_AUTH_ERROR } from './gcal'
+import { redactSensitiveText } from './privacy'
 
 export interface EmailText {
   id?: string
@@ -19,13 +20,31 @@ export interface ExtractedEvent {
 const GMAIL = 'https://gmail.googleapis.com/gmail/v1/users/me'
 const QUERY = 'newer_than:14d (학회 OR 학술대회 OR 심포지엄 OR 연수강좌 OR conference OR symposium OR 일정 OR 초청)'
 
-function decodeB64Url(data: string): string {
-  const b64 = data.replace(/-/g, '+').replace(/_/g, '/')
+function decodeB64Url(data: string, maxBytes = 12_000): string {
+  // Do not decode an unexpectedly large Gmail payload into browser memory.
+  // 12 KB covers at least 4,000 Korean UTF-8 characters.
+  const maxBase64Chars = Math.floor((maxBytes * 4) / 3 / 4) * 4
+  const b64 = data.slice(0, maxBase64Chars).replace(/-/g, '+').replace(/_/g, '/')
   try {
-    return decodeURIComponent(escape(atob(b64)))
+    const binary = atob(b64)
+    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0))
+    return new TextDecoder().decode(bytes)
   } catch {
     return ''
   }
+}
+
+async function edgeFunctionMessage(error: unknown, fallback: string): Promise<string> {
+  const context = (error as { context?: unknown } | null)?.context
+  if (context instanceof Response) {
+    try {
+      const body = await context.clone().json() as { error?: unknown }
+      if (typeof body.error === 'string' && body.error.trim()) return body.error
+    } catch {
+      // Fall through to the stable client-facing fallback.
+    }
+  }
+  return fallback
 }
 
 /** Recent schedule-looking emails (subject + plain-text body), capped at 8. */
@@ -50,7 +69,13 @@ export async function listRecentEmailTexts(
     const parts = (m.payload?.parts ?? [m.payload]).filter(Boolean)
     const plain = parts.find((p: any) => p?.mimeType === 'text/plain')?.body?.data
     const body = (plain ? decodeB64Url(plain) : m.snippet ?? '').slice(0, 4000)
-    out.push({ id, subject, body })
+    // Raw Gmail text is held only long enough to redact it. Only the masked
+    // representation leaves this function or is sent to the Edge Function.
+    out.push({
+      id,
+      subject: redactSensitiveText(subject).slice(0, 300),
+      body: redactSensitiveText(body).slice(0, 4000),
+    })
   }
   return out
 }
@@ -65,7 +90,10 @@ export async function requestEventExtraction(
     body: { emails, specialty },
   })
   if (error || !data?.events) {
-    throw new Error('추출 서버에 연결할 수 없습니다. (extract-events 함수 배포 필요)')
+    throw new Error(await edgeFunctionMessage(
+      error,
+      '추출 서버에 연결할 수 없습니다. (extract-events 함수 배포 필요)',
+    ))
   }
   // LLM output over untrusted email is untrusted itself — drop malformed
   // candidates so a missing/invalid field can never crash the review UI.

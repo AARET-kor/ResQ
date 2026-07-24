@@ -89,13 +89,19 @@ export function ScheduleSection({
   onMonthChange,
   onAdd,
   onDelete,
+  loading = false,
+  adding = false,
+  deletingIds = new Set<string>(),
 }: {
   events: EventItem[]
   year: number
   month0: number
   onMonthChange: (year: number, month0: number) => void
-  onAdd: (v: { title: string; starts_at: string; kind: EventKind }) => void
+  onAdd: (v: { title: string; starts_at: string; kind: EventKind }) => boolean | void | Promise<boolean | void>
   onDelete: (id: string) => void
+  loading?: boolean
+  adding?: boolean
+  deletingIds?: Set<string>
 }) {
   const [title, setTitle] = useState('')
   const [date, setDate] = useState('')
@@ -115,10 +121,11 @@ export function ScheduleSection({
   const prev = () => (month0 === 0 ? onMonthChange(year - 1, 11) : onMonthChange(year, month0 - 1))
   const next = () => (month0 === 11 ? onMonthChange(year + 1, 0) : onMonthChange(year, month0 + 1))
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!title.trim() || !date || !time) return
-    onAdd({ title: title.trim(), starts_at: `${date}T${time}:00+09:00`, kind })
+    if (!title.trim() || !date || !time || adding) return
+    const saved = await onAdd({ title: title.trim(), starts_at: `${date}T${time}:00+09:00`, kind })
+    if (saved === false) return
     setTitle(''); setDate(''); setTime(''); setKind('other')
   }
 
@@ -193,7 +200,12 @@ export function ScheduleSection({
         </div>
 
         {/* Month event list */}
-        <ul className="flex flex-col gap-2">
+        {loading && (
+          <div aria-label="일정 불러오는 중" className="flex animate-pulse flex-col gap-2">
+            {[0, 1].map((item) => <div key={item} className="h-9 rounded-md bg-white/10" />)}
+          </div>
+        )}
+        {!loading && <ul className="flex flex-col gap-2">
           {events.map((e) => (
             <li key={e.id} className="flex items-center gap-3 rounded-md bg-white/[0.07] px-3 py-2">
               <span className="font-mono text-[10px] uppercase text-cream/60">
@@ -204,7 +216,8 @@ export function ScheduleSection({
                 {EVENT_KINDS[e.kind]}
               </span>
               <button aria-label="일정 삭제" onClick={() => onDelete(e.id)}
-                className="font-mono text-[10px] uppercase text-cream/40 transition hover:text-red-400">
+                disabled={deletingIds.has(e.id)}
+                className="font-mono text-[10px] uppercase text-cream/40 transition hover:text-red-400 disabled:cursor-wait disabled:opacity-30">
                 삭제
               </button>
             </li>
@@ -212,7 +225,7 @@ export function ScheduleSection({
           {events.length === 0 && (
             <li className="font-mono text-xs uppercase text-cream/40">이 달의 일정이 없습니다</li>
           )}
-        </ul>
+        </ul>}
 
         {/* Add form */}
         <form onSubmit={submit} className="flex flex-wrap items-end gap-2">
@@ -240,8 +253,9 @@ export function ScheduleSection({
               ))}
             </select>
           </label>
-          <button type="submit" className="rounded-md bg-neon px-4 py-2 font-grotesk text-xs uppercase text-bg transition hover:opacity-90">
-            일정 추가
+          <button type="submit" disabled={adding}
+            className="rounded-md bg-neon px-4 py-2 font-grotesk text-xs uppercase text-bg transition hover:opacity-90 disabled:cursor-wait disabled:opacity-50">
+            {adding ? '추가 중…' : '일정 추가'}
           </button>
         </form>
       </div>

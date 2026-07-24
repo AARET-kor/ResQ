@@ -36,16 +36,24 @@ export function TodoSection({
   extracted = [],
   onAddExtracted,
   onDismissExtracted,
+  loading = false,
+  adding = false,
+  addingExtracted = false,
+  pendingIds = new Set<string>(),
 }: {
   todos: Todo[]
-  onAdd: (title: string, opts: { priority: TodoPriority; dueDate: string | null; dueTime: string | null }) => void
+  onAdd: (title: string, opts: { priority: TodoPriority; dueDate: string | null; dueTime: string | null }) => boolean | void | Promise<boolean | void>
   onToggle: (todo: Todo) => void
   onDelete: (id: string) => void
   onExtract?: (input: { text?: string; imageBase64?: string; mediaType?: string }) => void
   extracting?: boolean
   extracted?: ExtractedTodo[]
-  onAddExtracted?: (t: ExtractedTodo) => void
+  onAddExtracted?: (t: ExtractedTodo) => boolean | void | Promise<boolean | void>
   onDismissExtracted?: () => void
+  loading?: boolean
+  adding?: boolean
+  addingExtracted?: boolean
+  pendingIds?: Set<string>
 }) {
   const [title, setTitle] = useState('')
   const [priority, setPriority] = useState<TodoPriority>('normal')
@@ -60,11 +68,12 @@ export function TodoSection({
   const SpeechRecognitionCtor =
     typeof window !== 'undefined' ? ((window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition) : undefined
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault()
     const t = title.trim()
-    if (!t) return
-    onAdd(t, { priority, dueDate: dueDate || null, dueTime: dueTime || null })
+    if (!t || adding) return
+    const saved = await onAdd(t, { priority, dueDate: dueDate || null, dueTime: dueTime || null })
+    if (saved === false) return
     setTitle('')
     setPriority('normal')
     setDueDate('')
@@ -169,8 +178,9 @@ export function TodoSection({
               onChange={(e) => setDueTime(e.target.value)}
               className="rounded-md bg-white/5 px-2 py-1 font-mono text-[11px] text-cream outline-none focus:ring-1 focus:ring-neon"
             />
-            <button type="submit" className="rounded-md bg-neon px-4 py-2 font-grotesk text-xs uppercase text-bg transition hover:opacity-90">
-              추가
+            <button type="submit" disabled={adding}
+              className="rounded-md bg-neon px-4 py-2 font-grotesk text-xs uppercase text-bg transition hover:opacity-90 disabled:cursor-wait disabled:opacity-50">
+              {adding ? '추가 중…' : '추가'}
             </button>
           </div>
         </form>
@@ -180,6 +190,7 @@ export function TodoSection({
           aria-label="할일 붙여넣기 존"
           tabIndex={0}
           onPaste={handlePaste}
+          aria-busy={extracting}
           className="flex flex-col items-center gap-1 rounded-lg border border-dashed border-white/25 px-4 py-3 text-center font-mono text-[11px] text-cream/50 outline-none focus:ring-1 focus:ring-neon"
         >
           {extracting ? 'AI가 할일을 뽑는 중…' : '메모/사진 붙여넣기 → AI가 할일 생성'}
@@ -206,7 +217,8 @@ export function TodoSection({
                   <span className="font-mono text-[10px] uppercase text-cream/50">{PRIORITY_LABEL[t.priority]}</span>
                   <button
                     onClick={() => onAddExtracted?.(t)}
-                    className="rounded-md border border-white/30 px-3 py-1 font-grotesk text-[10px] uppercase text-cream transition hover:bg-white/10"
+                    disabled={addingExtracted}
+                    className="rounded-md border border-white/30 px-3 py-1 font-grotesk text-[10px] uppercase text-cream transition hover:bg-white/10 disabled:cursor-wait disabled:opacity-50"
                   >
                     할일에 추가
                   </button>
@@ -216,7 +228,12 @@ export function TodoSection({
           </div>
         )}
 
-        <ul className="flex flex-col gap-2">
+        {loading && (
+          <div aria-label="할 일 불러오는 중" className="flex animate-pulse flex-col gap-2">
+            {[0, 1, 2].map((item) => <div key={item} className="h-9 rounded-md bg-white/10" />)}
+          </div>
+        )}
+        {!loading && <ul className="flex flex-col gap-2">
           {sorted.map((t) => (
             <li
               key={t.id}
@@ -228,6 +245,7 @@ export function TodoSection({
                 aria-label={t.title}
                 checked={t.done}
                 onChange={() => onToggle(t)}
+                disabled={pendingIds.has(t.id)}
                 className="h-4 w-4 accent-[#6FFF00]"
               />
               <span className={`flex-1 font-mono text-sm ${t.done ? 'text-cream/40 line-through' : 'text-cream'}`}>
@@ -241,7 +259,8 @@ export function TodoSection({
               </span>
               <button
                 onClick={() => onDelete(t.id)}
-                className="font-mono text-[10px] uppercase text-cream/40 transition hover:text-red-400"
+                disabled={pendingIds.has(t.id)}
+                className="font-mono text-[10px] uppercase text-cream/40 transition hover:text-red-400 disabled:cursor-wait disabled:opacity-30"
               >
                 삭제
               </button>
@@ -250,7 +269,7 @@ export function TodoSection({
           {sorted.length === 0 && (
             <li className="font-mono text-xs uppercase text-cream/40">할 일이 없습니다 — 큐비가 쉬는 중 🐾</li>
           )}
-        </ul>
+        </ul>}
       </div>
     </LiquidGlass>
   )

@@ -36,6 +36,33 @@ describe('TodoSection', () => {
     expect(onAdd).toHaveBeenCalledWith('논문 읽기', { priority: 'high', dueDate: '2026-07-22', dueTime: '08:30' })
   })
 
+  it('keeps the draft when saving fails', async () => {
+    const onAdd = vi.fn().mockResolvedValue(false)
+    render(<TodoSection todos={[]} onAdd={onAdd} onToggle={vi.fn()} onDelete={vi.fn()} />)
+    const input = screen.getByLabelText('할 일 추가')
+    await userEvent.type(input, '회진 준비')
+    await userEvent.click(screen.getByRole('button', { name: '추가' }))
+    expect(input).toHaveValue('회진 준비')
+  })
+
+  it('shows a loading skeleton and disables a pending row', () => {
+    const { rerender } = render(
+      <TodoSection todos={[]} onAdd={vi.fn()} onToggle={vi.fn()} onDelete={vi.fn()} loading />,
+    )
+    expect(screen.getByLabelText('할 일 불러오는 중')).toBeInTheDocument()
+    rerender(
+      <TodoSection
+        todos={[todos[0]]}
+        onAdd={vi.fn()}
+        onToggle={vi.fn()}
+        onDelete={vi.fn()}
+        pendingIds={new Set(['t1'])}
+      />,
+    )
+    expect(screen.getByRole('checkbox', { name: '회진 준비' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '삭제' })).toBeDisabled()
+  })
+
   it('does not add empty todos', async () => {
     const onAdd = vi.fn()
     render(<TodoSection todos={[]} onAdd={onAdd} onToggle={vi.fn()} onDelete={vi.fn()} />)
