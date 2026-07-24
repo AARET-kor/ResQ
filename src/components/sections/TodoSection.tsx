@@ -3,6 +3,7 @@ import { Mic } from 'lucide-react'
 import { LiquidGlass } from '../LiquidGlass'
 import { sortTodos, PRIORITY_LABEL, PRIORITY_COLOR, type Todo, type TodoPriority } from '../../lib/todos'
 import type { ExtractedTodo } from '../../lib/todoExtract'
+import { PROVIDER_LABEL } from '../../lib/integrations'
 
 const PRIORITIES: TodoPriority[] = ['high', 'normal', 'low']
 
@@ -251,6 +252,11 @@ export function TodoSection({
               <span className={`flex-1 font-mono text-sm ${t.done ? 'text-cream/40 line-through' : 'text-cream'}`}>
                 {t.title}
               </span>
+              {t.source_provider && (
+                <span className="rounded-full border border-white/15 px-2 py-0.5 font-mono text-[9px] uppercase text-cream/45">
+                  {PROVIDER_LABEL[t.source_provider]}
+                </span>
+              )}
               {t.due_date && (
                 <span className="font-mono text-[10px] uppercase text-cream/50">{formatDue(t.due_date, t.due_time)}</span>
               )}

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Profile } from './profile'
+import type { IntegrationProvider, SyncStatus } from './integrations'
 
 export type TodoPriority = 'high' | 'normal' | 'low'
 
@@ -20,6 +21,16 @@ export interface Todo {
   xp_granted: boolean
   priority: TodoPriority
   due_time: string | null
+  source_provider?: IntegrationProvider | null
+  external_id?: string | null
+  external_source_id?: string | null
+  external_etag?: string | null
+  external_url?: string | null
+  external_updated_at?: string | null
+  last_synced_at?: string | null
+  sync_status?: SyncStatus
+  deleted_at?: string | null
+  updated_at?: string
 }
 
 export async function listTodos(client: SupabaseClient, userId: string): Promise<Todo[]> {
@@ -27,6 +38,7 @@ export async function listTodos(client: SupabaseClient, userId: string): Promise
     .from('todos')
     .select('*')
     .eq('user_id', userId)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false })
   if (error) throw error
   return (data as Todo[]) ?? []
@@ -47,6 +59,7 @@ export async function addTodo(
       due_date: dueDate,
       priority: opts.priority ?? 'normal',
       due_time: opts.dueTime ?? null,
+      sync_status: 'pending',
     })
     .select()
     .single()
@@ -73,8 +86,20 @@ export async function setTodoDone(
 }
 
 export async function deleteTodo(client: SupabaseClient, id: string): Promise<void> {
-  const { error } = await client.from('todos').delete().eq('id', id)
-  if (error) throw error
+  const { data, error: tombstoneError } = await client
+    .from('todos')
+    .update({
+      deleted_at: new Date().toISOString(),
+      sync_status: 'pending',
+    })
+    .eq('id', id)
+    .not('external_id', 'is', null)
+    .select('id')
+  if (tombstoneError) throw tombstoneError
+  if ((data ?? []).length > 0) return
+
+  const { error: deleteError } = await client.from('todos').delete().eq('id', id)
+  if (deleteError) throw deleteError
 }
 
 const PRIORITY_RANK: Record<TodoPriority, number> = { high: 0, normal: 1, low: 2 }

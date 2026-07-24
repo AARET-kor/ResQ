@@ -32,7 +32,10 @@ export function HomeSections({ profile, onProfileChange }: HomeSectionsProps) {
     events: schedule.events,
     todos: todos.todos,
     onAddEvent: schedule.add,
-    onEventSynced: schedule.markGoogleSynced,
+    onExternalDataChanged: () => {
+      schedule.refresh()
+      todos.refresh()
+    },
   })
   const team = useTeam(profile)
   const paperFeed = usePaperFeed({ profile, onProfileChange })
@@ -75,8 +78,26 @@ export function HomeSections({ profile, onProfileChange }: HomeSectionsProps) {
         <div className="mt-6">
           <SyncPanel
             googleConnected={google.googleConnected}
-            onSyncMonth={google.syncMonth}
+            microsoftIntegrationAvailable={google.microsoftIntegrationAvailable}
+            microsoftConnected={google.microsoftConnected}
+            microsoftAccountLabel={google.microsoftAccountLabel}
+            googleSources={google.googleSources}
+            microsoftSources={google.microsoftSources}
+            deviceSources={google.deviceSources}
+            nativeDeviceAvailable={google.nativeDeviceAvailable}
+            nativeDeviceProvider={google.nativeDeviceProvider}
+            catalogLoading={google.catalogLoading}
+            onRefreshGoogleSources={google.refreshGoogleCatalog}
+            onToggleSource={google.toggleSource}
+            onReconnectGoogle={google.reconnectGoogle}
+            onSyncMonth={google.syncGoogle}
+            onConnectMicrosoft={google.connectMicrosoft}
+            onSyncMicrosoft={google.syncMicrosoft}
+            onDisconnectMicrosoft={google.disconnectMicrosoft}
+            onConnectDevice={google.connectDevice}
+            onSyncDevice={google.syncDevice}
             syncing={google.syncing}
+            syncingProvider={google.syncingProvider}
             syncMessage={google.message}
             onDownloadIcs={google.downloadIcs}
             feedUrl={google.feedUrl}
@@ -151,6 +172,7 @@ export function HomeSections({ profile, onProfileChange }: HomeSectionsProps) {
           analysisKind={paperAnalysis.analysisKind}
           analysisLoading={paperAnalysis.loading}
           analysisError={paperAnalysis.error}
+          onAnalyze={paperAnalysis.analyze}
           relatedPapers={paperAnalysis.relatedPapers}
           relatedLoading={paperAnalysis.relatedLoading}
           relatedError={paperAnalysis.relatedError}

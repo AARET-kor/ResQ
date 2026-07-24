@@ -37,11 +37,11 @@ function fakeClient(rows: Todo[]) {
       }),
       update: (values: any) => ({
         eq: (_c: string, id: string) => ({
-          select: () => ({
-            single: () => {
-              calls.push({ op: 'update', args: { id, ...values } })
-              const row = rows.find((r) => r.id === id)
-              return Promise.resolve({ data: { ...row, ...values }, error: null })
+          not: () => ({
+            select: () => {
+              const row = rows.find((item) => item.id === id && item.external_id)
+              if (row) calls.push({ op: 'update', args: { id, ...values } })
+              return Promise.resolve({ data: row ? [{ id }] : [], error: null })
             },
           }),
         }),
@@ -95,6 +95,12 @@ describe('todos data access', () => {
     const c = fakeClient([t1])
     await deleteTodo(c, 't1')
     expect(c.calls[0]).toEqual({ op: 'delete', args: { id: 't1' } })
+  })
+  it('keeps an external todo as a pending deletion tombstone', async () => {
+    const c = fakeClient([{ ...t1, external_id: 'gt1', source_provider: 'google' }])
+    await deleteTodo(c, 't1')
+    expect(c.calls[0].op).toBe('update')
+    expect(c.calls[0].args.sync_status).toBe('pending')
   })
 })
 

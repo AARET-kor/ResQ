@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight } from 'lucide-react'
 import { LiquidGlass } from '../LiquidGlass'
 import { monthGrid } from '../../lib/calendar'
 import { EVENT_KINDS, type EventItem, type EventKind } from '../../lib/events'
+import { PROVIDER_LABEL } from '../../lib/integrations'
 
 const KIND_DOT: Record<EventKind, string> = {
   conference: '#6FFF00',
@@ -212,6 +213,11 @@ export function ScheduleSection({
                 {e.starts_at.slice(5, 10)} {e.starts_at.slice(11, 16)}
               </span>
               <span className="flex-1 font-mono text-sm">{e.title}</span>
+              {e.source_provider && (
+                <span className="rounded-full border border-white/15 px-2 py-0.5 font-mono text-[9px] uppercase text-cream/45">
+                  {PROVIDER_LABEL[e.source_provider]}
+                </span>
+              )}
               <span className="font-mono text-[10px] uppercase" style={{ color: KIND_DOT[e.kind] }}>
                 {EVENT_KINDS[e.kind]}
               </span>

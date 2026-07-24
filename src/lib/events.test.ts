@@ -8,9 +8,11 @@ function fakeClient(rows: EventItem[]) {
     from: () => ({
       select: () => ({
         eq: () => ({
-          gte: () => ({
-            lt: () => ({
-              order: () => Promise.resolve({ data: rows, error: null }),
+          is: () => ({
+            gte: () => ({
+              lt: () => ({
+                order: () => Promise.resolve({ data: rows, error: null }),
+              }),
             }),
           }),
         }),
@@ -28,6 +30,17 @@ function fakeClient(rows: EventItem[]) {
           calls.push({ op: 'delete', args: { id } })
           return Promise.resolve({ error: null })
         },
+      }),
+      update: (values: any) => ({
+        eq: (_c: string, id: string) => ({
+          not: () => ({
+            select: () => {
+              const row = rows.find((item) => item.id === id && item.external_id)
+              if (row) calls.push({ op: 'update', args: { id, ...values } })
+              return Promise.resolve({ data: row ? [{ id }] : [], error: null })
+            },
+          }),
+        }),
       }),
     }),
   }
@@ -53,6 +66,12 @@ describe('events data access', () => {
     const c = fakeClient([e1])
     await deleteEvent(c, 'e1')
     expect(c.calls[0]).toEqual({ op: 'delete', args: { id: 'e1' } })
+  })
+  it('keeps an external event as a pending deletion tombstone', async () => {
+    const c = fakeClient([{ ...e1, external_id: 'g1', source_provider: 'google' }])
+    await deleteEvent(c, 'e1')
+    expect(c.calls[0].op).toBe('update')
+    expect(c.calls[0].args.sync_status).toBe('pending')
   })
   it('exposes Korean labels for every kind', () => {
     for (const k of Object.keys(EVENT_KINDS)) {

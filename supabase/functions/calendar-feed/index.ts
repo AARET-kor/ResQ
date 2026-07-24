@@ -28,8 +28,16 @@ Deno.serve(async (req) => {
   const userId = profiles[0].id
 
   const [evRes, tdRes] = await Promise.all([
-    fetch(`${base}/rest/v1/events?user_id=eq.${encodeURIComponent(userId)}&select=*`, { headers }),
-    fetch(`${base}/rest/v1/todos?user_id=eq.${encodeURIComponent(userId)}&done=eq.false&select=*`, { headers }),
+    fetch(
+      `${base}/rest/v1/events?user_id=eq.${encodeURIComponent(userId)}` +
+      '&deleted_at=is.null&select=id,title,starts_at,ends_at,location',
+      { headers },
+    ),
+    fetch(
+      `${base}/rest/v1/todos?user_id=eq.${encodeURIComponent(userId)}` +
+      '&done=eq.false&deleted_at=is.null&select=id,title,due_date',
+      { headers },
+    ),
   ])
   const eventsRaw = await evRes.json()
   const todosRaw = await tdRes.json()
@@ -52,6 +60,10 @@ Deno.serve(async (req) => {
   }
   lines.push('END:VCALENDAR')
   return new Response(lines.join('\r\n') + '\r\n', {
-    headers: { 'content-type': 'text/calendar; charset=utf-8' },
+    headers: {
+      'content-type': 'text/calendar; charset=utf-8',
+      'cache-control': 'private, no-store',
+      pragma: 'no-cache',
+    },
   })
 })

@@ -191,6 +191,7 @@ export function useTodos({ profile, onProfileChange }: UseTodosOptions) {
     add,
     toggle,
     remove,
+    refresh: () => setReloadToken((value) => value + 1),
     extract,
     addExtracted,
     dismissExtracted: () => setExtracted([]),

@@ -11,7 +11,14 @@ import { useMascot } from './mascot/useMascot'
 import { HomeSections } from './home/HomeSections'
 
 export default function App() {
-  const { session, loading, signIn, signOut } = useAuth()
+  const {
+    session,
+    loading,
+    signIn,
+    signInWithApple,
+    appleSignInAvailable,
+    signOut,
+  } = useAuth()
   const [profile, setProfile] = useState<Profile | null>(null)
   // profileLoaded distinguishes "not fetched yet" from "fetched, no row" — the
   // gate below treats an authenticated-but-unfetched user as loading, so a
@@ -56,7 +63,16 @@ export default function App() {
   if (loading || (userId && !profileLoaded)) {
     return <div className="flex min-h-screen items-center justify-center font-mono text-sm uppercase text-cream/60">loading…</div>
   }
-  if (!session) return (<><TextureOverlay /><LoginScreen onSignIn={signIn} /></>)
+  if (!session) return (
+    <>
+      <TextureOverlay />
+      <LoginScreen
+        onSignIn={signIn}
+        onAppleSignIn={signInWithApple}
+        appleSignInAvailable={appleSignInAvailable}
+      />
+    </>
+  )
   if (!isProfileComplete(profile)) return (<><TextureOverlay /><Onboarding onSubmit={handleOnboard} error={onboardError} /></>)
   return (
     <>

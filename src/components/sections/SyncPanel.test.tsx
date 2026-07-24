@@ -22,7 +22,7 @@ describe('SyncPanel', () => {
   it('offers google sync, ics download, feed url and gmail scan when connected', async () => {
     const onSyncMonth = vi.fn(); const onDownloadIcs = vi.fn(); const onScanGmail = vi.fn()
     render(<SyncPanel {...base} onSyncMonth={onSyncMonth} onDownloadIcs={onDownloadIcs} onScanGmail={onScanGmail} />)
-    await userEvent.click(screen.getByRole('button', { name: /Google 캘린더로 이번 달 보내기/ }))
+    await userEvent.click(screen.getByRole('button', { name: /일정·할 일 양방향 동기화/ }))
     expect(onSyncMonth).toHaveBeenCalled()
     await userEvent.click(screen.getByRole('button', { name: /\.ics 다운로드/ }))
     expect(onDownloadIcs).toHaveBeenCalled()
@@ -32,8 +32,25 @@ describe('SyncPanel', () => {
   })
   it('asks to reconnect google when not connected', () => {
     render(<SyncPanel {...base} googleConnected={false} />)
-    expect(screen.getByText(/다시 로그인/)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Google 캘린더로 이번 달 보내기/ })).not.toBeInTheDocument()
+    expect(screen.getByText(/Google Calendar·Tasks 권한이 필요/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /일정·할 일 양방향 동기화/ })).not.toBeInTheDocument()
+  })
+  it('keeps Microsoft connection disabled until server credentials are configured', () => {
+    render(<SyncPanel {...base} />)
+    expect(screen.getByRole('button', { name: '관리자 설정 대기' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Microsoft 계정 연결' })).not.toBeInTheDocument()
+  })
+  it('enables Microsoft connection when integration configuration is available', async () => {
+    const onConnectMicrosoft = vi.fn()
+    render(
+      <SyncPanel
+        {...base}
+        microsoftIntegrationAvailable
+        onConnectMicrosoft={onConnectMicrosoft}
+      />,
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'Microsoft 계정 연결' }))
+    expect(onConnectMicrosoft).toHaveBeenCalledOnce()
   })
   it('shows the sync message and scanning state', () => {
     render(<SyncPanel {...base} syncMessage="3건 동기화 완료" scanning={true} />)

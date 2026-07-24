@@ -109,6 +109,8 @@ export function useSchedule(userId: string) {
     setMonth0(nextMonth0)
   }
 
+  const refresh = () => setReloadToken((value) => value + 1)
+
   const markGoogleSynced = (eventId: string, googleEventId: string) => {
     setEvents((current) =>
       current.map((event) =>
@@ -126,6 +128,7 @@ export function useSchedule(userId: string) {
     month0,
     add,
     remove,
+    refresh,
     changeMonth,
     markGoogleSynced,
   }

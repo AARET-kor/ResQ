@@ -5,6 +5,55 @@ import type { ExtractedEvent } from '../../lib/gmail'
 import type { GmailAuditEvent } from '../../lib/privacy'
 import { GmailConsentDialog } from '../privacy/GmailConsentDialog'
 import { PrivacyPolicyModal } from '../privacy/PrivacyPolicyModal'
+import type { IntegrationSource } from '../../lib/integrations'
+
+function SourceList({
+  sources,
+  onToggle,
+}: {
+  sources: IntegrationSource[]
+  onToggle?: (source: IntegrationSource) => void
+}) {
+  if (sources.length === 0) return null
+  const calendars = sources.filter((source) => source.resource_type === 'calendar')
+  const taskLists = sources.filter((source) => source.resource_type === 'task_list')
+  return (
+    <div className="grid gap-2 sm:grid-cols-2">
+      {[
+        { label: '캘린더', items: calendars },
+        { label: '할 일 목록', items: taskLists },
+      ].map((group) => group.items.length > 0 && (
+        <fieldset key={group.label} className="rounded-md border border-white/10 p-2">
+          <legend className="px-1 font-mono text-[9px] uppercase text-cream/40">
+            {group.label}
+          </legend>
+          <div className="flex max-h-32 flex-col gap-1 overflow-y-auto">
+            {group.items.map((source) => (
+              <label
+                key={source.id}
+                className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 font-mono text-[11px] text-cream/75 hover:bg-white/5"
+              >
+                <input
+                  type="checkbox"
+                  checked={source.selected}
+                  onChange={() => onToggle?.(source)}
+                />
+                {source.color && (
+                  <span
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={{ backgroundColor: source.color }}
+                  />
+                )}
+                <span className="min-w-0 flex-1 truncate">{source.name}</span>
+                {!source.can_write && <span className="text-[9px] text-cream/35">읽기</span>}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      ))}
+    </div>
+  )
+}
 
 /**
  * External calendar integration card: push this month to Google Calendar,
@@ -13,8 +62,26 @@ import { PrivacyPolicyModal } from '../privacy/PrivacyPolicyModal'
  */
 export function SyncPanel({
   googleConnected,
+  microsoftIntegrationAvailable = false,
+  microsoftConnected = false,
+  microsoftAccountLabel,
+  googleSources = [],
+  microsoftSources = [],
+  deviceSources = [],
+  nativeDeviceAvailable = false,
+  nativeDeviceProvider = null,
+  catalogLoading = false,
+  onRefreshGoogleSources,
+  onToggleSource,
+  onReconnectGoogle,
   onSyncMonth,
+  onConnectMicrosoft,
+  onSyncMicrosoft,
+  onDisconnectMicrosoft,
+  onConnectDevice,
+  onSyncDevice,
   syncing = false,
+  syncingProvider = null,
   syncMessage,
   onDownloadIcs,
   feedUrl,
@@ -33,8 +100,26 @@ export function SyncPanel({
   onDeleteAudits,
 }: {
   googleConnected: boolean
+  microsoftIntegrationAvailable?: boolean
+  microsoftConnected?: boolean
+  microsoftAccountLabel?: string | null
+  googleSources?: IntegrationSource[]
+  microsoftSources?: IntegrationSource[]
+  deviceSources?: IntegrationSource[]
+  nativeDeviceAvailable?: boolean
+  nativeDeviceProvider?: 'apple' | 'android' | null
+  catalogLoading?: boolean
+  onRefreshGoogleSources?: () => void
+  onToggleSource?: (source: IntegrationSource) => void
+  onReconnectGoogle?: () => void
   onSyncMonth: () => void
+  onConnectMicrosoft?: () => void
+  onSyncMicrosoft?: () => void
+  onDisconnectMicrosoft?: () => void
+  onConnectDevice?: () => void
+  onSyncDevice?: () => void
   syncing?: boolean
+  syncingProvider?: 'google' | 'microsoft' | 'apple' | 'android' | null
   syncMessage: string | null
   onDownloadIcs: () => void
   feedUrl: string | null
@@ -63,28 +148,157 @@ export function SyncPanel({
 
         {/* Google */}
         <div className="flex flex-col gap-2 rounded-md bg-white/5 px-4 py-3">
-          <span className="font-mono text-[10px] uppercase text-cream/50">Google 캘린더</span>
+          <div className="flex items-center justify-between gap-3">
+            <span className="font-mono text-[10px] uppercase text-cream/50">
+              Google Calendar + Tasks
+            </span>
+            {googleConnected && (
+              <span className="rounded-full bg-neon/10 px-2 py-0.5 font-mono text-[9px] text-neon">
+                연결됨
+              </span>
+            )}
+          </div>
           {googleConnected ? (
             <>
-              <button onClick={onSyncMonth} disabled={syncing}
-                className="self-start rounded-md bg-neon px-4 py-2 font-grotesk text-xs uppercase text-bg transition hover:opacity-90 disabled:opacity-50">
-                Google 캘린더로 이번 달 보내기
-              </button>
-              <span className="font-mono text-[10px] text-cream/50">30분 전 알림, 학회는 하루 전 추가</span>
+              <div className="flex flex-wrap gap-2">
+                <button onClick={onSyncMonth} disabled={syncing}
+                  className="rounded-md bg-neon px-4 py-2 font-grotesk text-xs uppercase text-bg transition hover:opacity-90 disabled:opacity-50">
+                  {syncingProvider === 'google' ? 'Google 동기화 중…' : '일정·할 일 양방향 동기화'}
+                </button>
+                <button onClick={onRefreshGoogleSources} disabled={catalogLoading || syncing}
+                  className="rounded-md border border-white/20 px-3 py-2 font-mono text-[10px] text-cream/70 transition hover:bg-white/10 disabled:opacity-40">
+                  {catalogLoading ? '목록 확인 중…' : '캘린더·목록 새로고침'}
+                </button>
+                {onReconnectGoogle && (
+                  <button onClick={onReconnectGoogle} disabled={syncing}
+                    className="font-mono text-[10px] text-cream/50 underline disabled:opacity-40">
+                    권한 다시 연결
+                  </button>
+                )}
+              </div>
+              <SourceList sources={googleSources} onToggle={onToggleSource} />
+              {googleSources.length === 0 && (
+                <span className="font-mono text-[10px] text-cream/50">
+                  목록 새로고침을 눌러 가져올 캘린더와 할 일 목록을 선택하세요.
+                </span>
+              )}
+              <span className="font-mono text-[10px] leading-relaxed text-cream/45">
+                선택한 일정은 최근 90일부터 앞으로 1년까지 통합합니다. 일정 메모와 이메일 본문은 동기화하지 않습니다.
+              </span>
             </>
           ) : (
-            <span className="font-mono text-xs text-cream/60">
-              Google 권한이 필요합니다 — 로그아웃 후 다시 로그인하면 캘린더/Gmail 권한을 요청합니다.
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="font-mono text-xs text-cream/60">
+                Google Calendar·Tasks 권한이 필요합니다.
+              </span>
+              {onReconnectGoogle && (
+                <button onClick={onReconnectGoogle}
+                  className="rounded-md border border-white/30 px-3 py-1.5 font-grotesk text-[10px] uppercase text-cream hover:bg-white/10">
+                  Google 다시 연결
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Microsoft */}
+        <div className="flex flex-col gap-2 rounded-md bg-white/5 px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <span className="font-mono text-[10px] uppercase text-cream/50">
+              Outlook Calendar + Microsoft To Do
             </span>
+            {microsoftConnected && (
+              <span className="rounded-full bg-sky-400/10 px-2 py-0.5 font-mono text-[9px] text-sky-300">
+                연결됨
+              </span>
+            )}
+          </div>
+          {microsoftConnected ? (
+            <>
+              {microsoftAccountLabel && (
+                <span className="font-mono text-[10px] text-cream/50">{microsoftAccountLabel}</span>
+              )}
+              <div className="flex flex-wrap items-center gap-2">
+                <button onClick={onSyncMicrosoft} disabled={syncing}
+                  className="rounded-md bg-sky-300 px-4 py-2 font-grotesk text-xs uppercase text-bg transition hover:opacity-90 disabled:opacity-50">
+                  {syncingProvider === 'microsoft' ? 'Microsoft 동기화 중…' : 'Outlook·To Do 동기화'}
+                </button>
+                <button onClick={onDisconnectMicrosoft} disabled={syncing}
+                  className="font-mono text-[10px] text-cream/45 underline disabled:opacity-40">
+                  연결 해제
+                </button>
+              </div>
+              <SourceList sources={microsoftSources} onToggle={onToggleSource} />
+              <span className="font-mono text-[10px] text-cream/45">
+                삼성 Reminder를 Microsoft To Do와 동기화하면 ResQ에서도 함께 볼 수 있습니다.
+              </span>
+            </>
+          ) : microsoftIntegrationAvailable ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <button onClick={onConnectMicrosoft} disabled={catalogLoading}
+                className="rounded-md border border-sky-300/50 px-4 py-2 font-grotesk text-xs uppercase text-sky-200 transition hover:bg-sky-300/10 disabled:opacity-40">
+                Microsoft 계정 연결
+              </button>
+              <span className="font-mono text-[10px] text-cream/45">
+                Outlook 일정과 To Do·삼성 Reminder를 통합합니다.
+              </span>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-3">
+              <button disabled
+                className="rounded-md border border-white/15 px-4 py-2 font-grotesk text-xs uppercase text-cream/35">
+                관리자 설정 대기
+              </button>
+              <span className="font-mono text-[10px] text-cream/45">
+                Microsoft Entra 앱 자격 증명을 등록하면 Outlook·To Do 연결이 활성화됩니다.
+              </span>
+            </div>
           )}
         </div>
 
         {/* Apple / Galaxy */}
         <div className="flex flex-col gap-2 rounded-md bg-white/5 px-4 py-3">
-          <span className="font-mono text-[10px] uppercase text-cream/50">아이폰 / 갤럭시</span>
+          <span className="font-mono text-[10px] uppercase text-cream/50">
+            Apple Calendar · Reminders / 기기 캘린더
+          </span>
+          {nativeDeviceAvailable && (
+            <>
+              <div className="flex flex-wrap items-center gap-2">
+                {deviceSources.length === 0 ? (
+                  <button onClick={onConnectDevice} disabled={catalogLoading || syncing}
+                    className="rounded-md bg-violet-300 px-4 py-2 font-grotesk text-xs uppercase text-bg transition hover:opacity-90 disabled:opacity-40">
+                    {nativeDeviceProvider === 'apple'
+                      ? 'Apple Calendar·Reminders 연결'
+                      : '기기 캘린더 연결'}
+                  </button>
+                ) : (
+                  <>
+                    <button onClick={onSyncDevice} disabled={syncing}
+                      className="rounded-md bg-violet-300 px-4 py-2 font-grotesk text-xs uppercase text-bg transition hover:opacity-90 disabled:opacity-40">
+                      {syncingProvider === nativeDeviceProvider
+                        ? '기기 동기화 중…'
+                        : nativeDeviceProvider === 'apple'
+                          ? 'Apple 일정·미리 알림 동기화'
+                          : '기기 일정 동기화'}
+                    </button>
+                    <button onClick={onConnectDevice} disabled={catalogLoading || syncing}
+                      className="font-mono text-[10px] text-cream/50 underline disabled:opacity-40">
+                      권한·목록 새로고침
+                    </button>
+                  </>
+                )}
+              </div>
+              <SourceList sources={deviceSources} onToggle={onToggleSource} />
+              {nativeDeviceProvider === 'android' && (
+                <span className="font-mono text-[10px] text-cream/45">
+                  Android 표준 캘린더를 통합합니다. 삼성 Reminder는 Microsoft To Do 연결을 사용하세요.
+                </span>
+              )}
+            </>
+          )}
           <button onClick={onDownloadIcs}
             className="self-start rounded-md border border-white/30 px-4 py-2 font-grotesk text-xs uppercase text-cream transition hover:bg-white/10">
-            .ics 다운로드
+            읽기용 .ics 다운로드
           </button>
           {feedUrl && (
             <div className="flex flex-col gap-1">
@@ -95,6 +309,11 @@ export function SyncPanel({
                 아이폰/갤럭시 캘린더 앱에서 '구독 캘린더 추가'에 붙여넣기
               </span>
             </div>
+          )}
+          {!nativeDeviceAvailable && (
+            <span className="font-mono text-[10px] leading-relaxed text-cream/45">
+              Apple Calendar·Reminders 및 기기에만 저장된 삼성 일정의 완전한 양방향 연동은 ResQ 모바일 앱에서 시스템 권한으로 제공됩니다.
+            </span>
           )}
         </div>
 
