@@ -2,12 +2,20 @@ import type { Paper } from '../../lib/pubmed'
 import { evidenceLabel } from '../../lib/paperQuality'
 import { jifForJournal } from '../../lib/sources'
 
-const COVERS = ['#7c5cff', '#0ea5e9', '#ec4899', '#f59e0b', '#22c55e', '#ef4444', '#8b5cf6', '#14b8a6']
+// Color now MEANS something: cover tone = evidence level (was a random
+// journal-hash rainbow). Same level → same tone across every shelf.
+const EVIDENCE_COVER: Record<string, string> = {
+  guideline: '#0E7A5F',           // 가이드라인 — deep green
+  'systematic-review': '#12766E', // 체계적 문헌고찰 — teal
+  rct: '#1D6FB8',                 // 무작위 임상시험 — blue
+  'clinical-study': '#28518F',    // 임상연구 — navy blue
+  review: '#6D5BB8',              // 리뷰 — violet
+  preprint: '#B7791F',            // 프리프린트 — amber (동료평가 전)
+  other: '#3A4A6E',               // 원저/기타 — slate navy
+}
 
-function coverColor(seed: string): string {
-  let h = 0
-  for (const c of seed) h = (h * 31 + c.charCodeAt(0)) >>> 0
-  return COVERS[h % COVERS.length]
+function coverColor(level: string | undefined): string {
+  return EVIDENCE_COVER[level ?? 'other'] ?? EVIDENCE_COVER.other
 }
 
 export function PaperShelf({
@@ -25,7 +33,7 @@ export function PaperShelf({
 }) {
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="font-grotesk text-xl uppercase sm:text-2xl">{title}</h3>
+      <h3 className="font-serif text-xl font-black tracking-tight sm:text-2xl">{title}</h3>
       {papers.length === 0 ? (
         <p className="font-mono text-xs uppercase text-cream/40">{emptyNote}</p>
       ) : (
@@ -35,14 +43,14 @@ export function PaperShelf({
               key={`${p.src ?? 'MED'}-${p.pmid}`}
               onClick={() => { if (!disabled) onOpen(p) }}
               aria-disabled={disabled}
-              className={`w-[170px] transition sm:w-[190px] ${
+              className={`group w-[170px] transition sm:w-[190px] ${
                 disabled ? 'cursor-wait opacity-60' : 'cursor-pointer hover:-translate-y-1'
               }`}
             >
               {/* generated cover */}
               <div
-                className="flex aspect-[3/4] flex-col justify-between overflow-hidden rounded-xl p-3 shadow-lg"
-                style={{ background: `linear-gradient(160deg, ${coverColor(p.journal || p.title)} 0%, #010828 130%)` }}
+                className="flex aspect-[3/4] flex-col justify-between overflow-hidden rounded-xl p-3 shadow-lg ring-1 ring-white/10 transition group-hover:ring-neon/50"
+                style={{ background: `linear-gradient(168deg, ${coverColor(p.evidenceLevel)} 0%, #0A1030 125%)` }}
               >
                 <div className="flex items-start justify-between gap-1">
                   <span className="line-clamp-2 font-mono text-[9px] uppercase leading-tight text-white/80">
@@ -59,7 +67,7 @@ export function PaperShelf({
                     )}
                   </span>
                 </div>
-                <p className="line-clamp-4 font-mono text-[13px] font-bold leading-snug text-white">
+                <p className="line-clamp-4 font-serif text-[15px] font-bold leading-snug text-white">
                   {p.title}
                 </p>
                 <div className="flex flex-col gap-1">

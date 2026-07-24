@@ -75,7 +75,7 @@ export function usePaperAnalysis({ profile, onProfileChange }: UsePaperAnalysisO
       })
   }
 
-  const beginAnalysis = (paper: Paper) => {
+  const resetForPaper = (paper: Paper) => {
     relatedRequestId.current += 1
     setSelected(paper)
     setSelectedTitle(paper.title)
@@ -87,7 +87,6 @@ export function usePaperAnalysis({ profile, onProfileChange }: UsePaperAnalysisO
     setRelatedError(null)
     setIdeation(null)
     setIdeationError(null)
-    setLoading(true)
   }
 
   const loadRelated = async (paper: Paper) => {
@@ -108,11 +107,34 @@ export function usePaperAnalysis({ profile, onProfileChange }: UsePaperAnalysisO
     }
   }
 
+  /**
+   * Opens the paper for READING first — abstract, related papers and any cached
+   * analysis. No AI call and no XP here: analysis is opt-in via analyze()
+   * (the AnalyzeQ button), so the user can skim the abstract before spending
+   * an analysis run.
+   */
   const open = async (paper: Paper) => {
-    if (analysisInFlight.current) return
-    analysisInFlight.current = true
-    beginAnalysis(paper)
+    resetForPaper(paper)
     void loadRelated(paper)
+    try {
+      const cached = await getAnalysis(supabase, userId, paper.pmid)
+      if (cached) {
+        setAnalysis(cached.analysis)
+        setAnalysisKind(analysisKindOf(cached))
+      }
+    } catch (cacheError) {
+      // A cache miss/failure is non-fatal — the reader still sees the abstract.
+      console.warn('cached analysis lookup failed', cacheError)
+    }
+  }
+
+  /** Runs the AI breakdown for the currently open paper (AnalyzeQ). */
+  const analyze = async () => {
+    const paper = selected
+    if (!paper || analysisInFlight.current) return
+    analysisInFlight.current = true
+    setError(null)
+    setLoading(true)
     try {
       const cached = await getAnalysis(supabase, userId, paper.pmid)
       if (cached) {
@@ -166,7 +188,7 @@ export function usePaperAnalysis({ profile, onProfileChange }: UsePaperAnalysisO
       notify({
         message: failure,
         tone: 'error',
-        action: { label: '재시도', onClick: () => { void open(paper) } },
+        action: { label: '재시도', onClick: () => { void analyze() } },
       })
     } finally {
       analysisInFlight.current = false
@@ -193,7 +215,8 @@ export function usePaperAnalysis({ profile, onProfileChange }: UsePaperAnalysisO
       url: '',
       pmcid: null,
     }
-    beginAnalysis(paper)
+    resetForPaper(paper)
+    setLoading(true)
     try {
       const text = await requestReport(supabase, paper, profile.specialty, {
         pdfBase64: await pdfFileToBase64(file),
@@ -309,6 +332,7 @@ export function usePaperAnalysis({ profile, onProfileChange }: UsePaperAnalysisO
     ideationLoading,
     ideationError,
     open,
+    analyze,
     uploadPdf,
     openReport,
     generateIdeation,

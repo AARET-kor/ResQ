@@ -5,6 +5,8 @@ import type { Paper } from '../../lib/pubmed'
 import type { PaperAnalysis } from '../../lib/papers'
 import type { JournalSource } from '../../lib/sources'
 import { SORT_LABEL, type PaperSortKey, type SortDir } from '../../lib/sortPapers'
+import { findOaCopy, scholarSearchUrl } from '../../lib/openAccess'
+import { splitReportSections } from '../../lib/reportSections'
 
 export function PapersSection({
   shelves, loading, error,
@@ -13,6 +15,7 @@ export function PapersSection({
   onRefresh, onOpen, onUploadPdf,
   reports, onOpenReport,
   selected, selectedTitle, analysis, analysisKind, analysisLoading, analysisError, onClose,
+  onAnalyze,
   relatedPapers = [], relatedLoading = false, relatedError = null,
   ideation = null, ideationLoading = false, ideationError = null, onGenerateIdeation,
   specialtyOptions = [],
@@ -45,6 +48,8 @@ export function PapersSection({
   analysisLoading: boolean
   analysisError: string | null
   onClose: () => void
+  /** Opt-in AI breakdown trigger (AnalyzeQ). Absent → button hidden. */
+  onAnalyze?: () => void
   relatedPapers?: Paper[]
   relatedLoading?: boolean
   relatedError?: string | null
@@ -62,6 +67,31 @@ export function PapersSection({
   specialtyNotice?: string | null
 }) {
   const [drawerTab, setDrawerTab] = useState<'breakdown' | 'related' | 'ideation'>('breakdown')
+  // Caramel-style numbered section nav inside the breakdown report.
+  const [activeSection, setActiveSection] = useState(0)
+  // Legal OA lookup (Unpaywall) — per-paper, opt-in.
+  const [oa, setOa] = useState<{ status: 'idle' | 'loading' | 'found' | 'none' | 'error'; url?: string }>({ status: 'idle' })
+
+  useEffect(() => {
+    setActiveSection(0)
+    setOa({ status: 'idle' })
+  }, [selected?.pmid])
+
+  useEffect(() => { setActiveSection(0) }, [analysis])
+
+  const handleFindOa = async () => {
+    if (!selected?.doi) return
+    setOa({ status: 'loading' })
+    try {
+      const copy = await findOaCopy(selected.doi)
+      setOa(copy ? { status: 'found', url: copy.url } : { status: 'none' })
+    } catch (oaError) {
+      console.error(oaError)
+      setOa({ status: 'error' })
+    }
+  }
+
+  const reportSections = analysis ? splitReportSections(analysis) : []
   const isEmpty = shelves.every((s) => s.papers.length === 0)
 
   useEffect(() => {
@@ -287,25 +317,7 @@ export function PapersSection({
 
               {drawerTab === 'breakdown' && (
                 <>
-                  <div className="rounded-xl bg-white/70 p-4">
-                    <h5 className="mb-2 font-mono text-[11px] font-bold uppercase tracking-wider text-[#1f7a3f]">
-                      8단계 근거 중심 Breakdown
-                    </h5>
-                    {analysisLoading && <p className="font-mono text-xs text-[#1c3325]/60">큐비가 논문을 분석하는 중… 🐾</p>}
-                    {analysisError && (
-                      <div className="flex flex-col gap-2 rounded-md border border-amber-400 bg-amber-50 p-3">
-                        <p className="font-mono text-xs text-amber-900">{analysisError}</p>
-                        {/서버|배포|ANTHROPIC/i.test(analysisError) && (
-                          <p className="font-mono text-[11px] leading-relaxed text-amber-900/80">
-                            관리자 설정 필요: 터미널에서{' '}
-                            <code className="rounded bg-amber-900/10 px-1">supabase secrets set ANTHROPIC_API_KEY=발급받은키</code>
-                            {' '}실행 후 다시 열면 분석이 표시됩니다.
-                          </p>
-                        )}
-                      </div>
-                    )}
-                    {analysis && <p className="whitespace-pre-wrap font-mono text-[13px] leading-[1.8] text-[#1c3325]">{analysis}</p>}
-                  </div>
+                  {/* 초록 먼저 — 분석은 opt-in */}
                   <div className="rounded-xl bg-white/50 p-4">
                     <h5 className="mb-2 font-mono text-[11px] font-bold uppercase tracking-wider text-[#1f7a3f]">
                       초록 · Abstract (EN)
@@ -314,6 +326,107 @@ export function PapersSection({
                       {selected.abstract || '(초록 없음)'}
                     </p>
                   </div>
+
+                  {/* AnalyzeQ — 버튼을 눌러야 AI 분석 시작 */}
+                  {!analysis && !analysisLoading && !analysisError && onAnalyze && (
+                    <div className="flex flex-col items-center gap-2 rounded-xl border-2 border-dashed border-[#1f7a3f]/30 bg-white/40 p-6 text-center">
+                      <button
+                        onClick={onAnalyze}
+                        className="rounded-full bg-[#1f7a3f] px-8 py-3 font-grotesk text-sm uppercase tracking-wide text-white shadow-md transition hover:scale-[1.03] hover:bg-[#17632f]"
+                      >
+                        AnalyzeQ · AI 분석 시작
+                      </button>
+                      <p className="font-mono text-[11px] text-[#1c3325]/60">
+                        초록을 먼저 읽어보고, 준비되면 큐비에게 8단계 근거 중심 Breakdown을 맡기세요.
+                        {selected.pmcid ? ' (원문 전체 분석 가능)' : ' (초록 기반 분석)'}
+                      </p>
+                    </div>
+                  )}
+
+                  {(analysisLoading || analysisError || analysis) && (
+                    <div className="rounded-xl bg-white/70 p-4">
+                      <h5 className="mb-2 font-mono text-[11px] font-bold uppercase tracking-wider text-[#1f7a3f]">
+                        8단계 근거 중심 Breakdown
+                      </h5>
+                      {analysisLoading && <p className="font-mono text-xs text-[#1c3325]/60">큐비가 논문을 분석하는 중… 🐾</p>}
+                      {analysisError && (
+                        <div className="flex flex-col gap-2 rounded-md border border-amber-400 bg-amber-50 p-3">
+                          <p className="font-mono text-xs text-amber-900">{analysisError}</p>
+                          {/서버|배포|ANTHROPIC/i.test(analysisError) && (
+                            <p className="font-mono text-[11px] leading-relaxed text-amber-900/80">
+                              관리자 설정 필요: 터미널에서{' '}
+                              <code className="rounded bg-amber-900/10 px-1">supabase secrets set ANTHROPIC_API_KEY=발급받은키</code>
+                              {' '}실행 후 다시 열면 분석이 표시됩니다.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      {analysis && reportSections.length > 1 && (
+                        <div className="mb-3 flex gap-1 overflow-x-auto border-b border-[#1c3325]/10 pb-2">
+                          {reportSections.map((s, i) => (
+                            <button
+                              key={s.title + i}
+                              onClick={() => setActiveSection(i)}
+                              className={`shrink-0 rounded-md px-2.5 py-1.5 font-mono text-[11px] transition ${
+                                activeSection === i
+                                  ? 'bg-[#1f7a3f] font-bold text-white'
+                                  : 'text-[#1c3325]/55 hover:bg-[#1c3325]/5 hover:text-[#1c3325]'
+                              }`}
+                            >
+                              {String(i + 1).padStart(2, '0')} {s.title}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {analysis && (
+                        <p className="whitespace-pre-wrap font-mono text-[13px] leading-[1.8] text-[#1c3325]">
+                          {reportSections.length > 1
+                            ? `${reportSections[Math.min(activeSection, reportSections.length - 1)].title}\n\n${reportSections[Math.min(activeSection, reportSections.length - 1)].body}`
+                            : analysis}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 원문 접근 — 합법 경로만 (Scholar 딥링크 · Unpaywall OA) */}
+                  <div className="flex flex-wrap items-center gap-3 rounded-xl bg-white/40 p-3">
+                    <a
+                      href={scholarSearchUrl(selected.title)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-mono text-[11px] text-[#1c3325]/70 underline transition hover:text-[#1f7a3f]"
+                    >
+                      Google Scholar에서 보기 ↗
+                    </a>
+                    {selected.oaUrl && (
+                      <a href={selected.oaUrl} target="_blank" rel="noreferrer"
+                        className="font-mono text-[11px] font-bold text-[#1f7a3f] underline">
+                        무료 원문 열기 (OA) ↗
+                      </a>
+                    )}
+                    {!selected.oaUrl && selected.doi && oa.status === 'idle' && (
+                      <button onClick={handleFindOa}
+                        className="rounded-md border border-[#1f7a3f]/40 px-3 py-1.5 font-mono text-[11px] text-[#1f7a3f] transition hover:bg-[#1f7a3f]/10">
+                        무료 원문 찾기 (Unpaywall)
+                      </button>
+                    )}
+                    {oa.status === 'loading' && <span className="font-mono text-[11px] text-[#1c3325]/50">합법 OA 사본 검색 중…</span>}
+                    {oa.status === 'found' && oa.url && (
+                      <a href={oa.url} target="_blank" rel="noreferrer"
+                        className="font-mono text-[11px] font-bold text-[#1f7a3f] underline">
+                        무료 원문 열기 (OA) ↗
+                      </a>
+                    )}
+                    {oa.status === 'none' && (
+                      <span className="font-mono text-[11px] text-[#1c3325]/55">
+                        무료 원문 없음 — 기관 도서관 또는 PDF 업로드를 이용하세요
+                      </span>
+                    )}
+                    {oa.status === 'error' && (
+                      <span className="font-mono text-[11px] text-amber-800">OA 검색 실패 — 잠시 후 다시 시도해주세요</span>
+                    )}
+                  </div>
+
                   {analysis && (
                     <a
                       download="resq-paper-report.md"

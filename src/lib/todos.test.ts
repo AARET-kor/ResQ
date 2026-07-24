@@ -20,6 +20,10 @@ function fakeClient(rows: Todo[]) {
     from: () => ({
       select: () => ({
         eq: () => ({
+          // soft-delete filter chain: .is('deleted_at', null).order(...)
+          is: () => ({
+            order: () => Promise.resolve({ data: rows, error: null }),
+          }),
           order: () => Promise.resolve({ data: rows, error: null }),
         }),
       }),

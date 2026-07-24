@@ -11,6 +11,7 @@ export default {
       fontFamily: {
         grotesk: ['Anton', 'sans-serif'],
         condiment: ['Condiment', 'cursive'],
+        serif: ['"Noto Serif KR"', 'Georgia', 'serif'],
         mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
     },
