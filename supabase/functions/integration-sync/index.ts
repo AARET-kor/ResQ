@@ -3,6 +3,7 @@ import {
   authenticatedUser,
   beginSync,
   dbRows,
+  dbWrite,
   finishSync,
   json,
   type JsonRecord,
@@ -30,21 +31,34 @@ async function connectionFor(
 async function synchronize(
   userId: string,
   provider: SyncProvider,
+  discoverOnly = false,
 ): Promise<SyncResult> {
   const connection = await connectionFor(userId, provider)
   if (!connection) throw new Error(`${provider.toUpperCase()}_NOT_CONNECTED`)
   if (!await beginSync(connection.id, userId)) throw new Error('SYNC_ALREADY_RUNNING')
   try {
     const result = provider === 'google'
-      ? await syncGoogle(userId, connection)
+      ? await syncGoogle(userId, connection, { discoverOnly })
       : provider === 'microsoft'
-        ? await syncMicrosoft(userId, connection)
+        ? await syncMicrosoft(userId, connection, { discoverOnly })
         : provider === 'todoist'
-          ? await syncTodoist(userId, connection)
+          ? await syncTodoist(userId, connection, { discoverOnly })
           : provider === 'ics'
             ? await syncIcs(userId, connection)
             : await syncCalDav(userId, connection)
-    await finishSync(connection.id, userId, null)
+    if (discoverOnly) {
+      await dbWrite(
+        `integration_connections?id=eq.${encodeURIComponent(connection.id)}`,
+        'PATCH',
+        {
+          sync_locked_until: null,
+          status: 'active',
+          last_error: null,
+        },
+      )
+    } else {
+      await finishSync(connection.id, userId, null)
+    }
     return result
   } catch (error) {
     const message = error instanceof Error ? error.message.slice(0, 500) : 'UNKNOWN'
@@ -82,10 +96,17 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json().catch(() => ({}))
     const provider = body.provider as SyncProvider
+    if (body.action !== undefined && !['sync', 'discover'].includes(String(body.action))) {
+      return json({ error: '지원하지 않는 동기화 작업입니다.' }, 400)
+    }
     if (!['google', 'microsoft', 'todoist', 'ics', 'caldav'].includes(provider)) {
       return json({ error: '지원하지 않는 동기화 제공자입니다.' }, 400)
     }
-    return json(await synchronize(user.id, provider))
+    const discoverOnly = body.action === 'discover'
+    if (discoverOnly && !['google', 'microsoft', 'todoist'].includes(provider)) {
+      return json({ error: '이 연결은 별도 목록 탐색을 지원하지 않습니다.' }, 400)
+    }
+    return json(await synchronize(user.id, provider, discoverOnly))
   } catch (error) {
     return errorResponse(error)
   }

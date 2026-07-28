@@ -158,6 +158,7 @@ async function refreshSources(
             access_role: calendar.accessRole ?? null,
             web_url: 'https://calendar.google.com/calendar/',
           },
+          last_synced_at: prior?.last_synced_at ?? null,
           last_error: null,
         }
       }),
@@ -176,6 +177,7 @@ async function refreshSources(
         can_write: true,
         sync_mode: prior?.sync_mode ?? 'two_way',
         metadata: { web_url: 'https://tasks.google.com/' },
+        last_synced_at: prior?.last_synced_at ?? null,
         last_error: null,
       }
     }),
@@ -525,10 +527,12 @@ async function pullTaskList(
 export async function syncGoogle(
   userId: string,
   connection: JsonRecord,
+  options: { discoverOnly?: boolean } = {},
 ): Promise<SyncResult> {
   const token = await accessToken(connection)
   const sources = await refreshSources(userId, connection.id, token)
   const result = emptyResult(sources.length)
+  if (options.discoverOnly) return result
   if (connection.sync_mode === 'two_way') {
     mergeResult(result, await pushEvents(userId, token, sources))
     mergeResult(result, await pushTasks(userId, token, sources))

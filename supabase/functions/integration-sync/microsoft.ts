@@ -168,6 +168,7 @@ async function refreshSources(
           ...(prior?.metadata ?? {}),
           web_url: 'https://outlook.office.com/calendar/',
         },
+        last_synced_at: prior?.last_synced_at ?? null,
         last_error: null,
       }
     }),
@@ -192,6 +193,7 @@ async function refreshSources(
           ...(prior?.metadata ?? {}),
           web_url: 'https://to-do.office.com/tasks/',
         },
+        last_synced_at: prior?.last_synced_at ?? null,
         last_error: null,
       }
     }),
@@ -553,10 +555,12 @@ async function pullTaskList(
 export async function syncMicrosoft(
   userId: string,
   connection: JsonRecord,
+  options: { discoverOnly?: boolean } = {},
 ): Promise<SyncResult> {
   const token = await accessToken(connection)
   const sources = await refreshSources(userId, connection.id, token)
   const result = emptyResult(sources.length)
+  if (options.discoverOnly) return result
   if (connection.sync_mode === 'two_way') {
     mergeResult(result, await pushEvents(userId, token, sources))
     mergeResult(result, await pushTasks(userId, token, sources))

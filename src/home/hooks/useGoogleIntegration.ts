@@ -11,12 +11,14 @@ import { buildICS } from '../../lib/ics'
 import { importICSFile } from '../../lib/icsImport'
 import {
   configureDirectIntegration,
+  discoverExternalSources,
   disconnectIntegration,
   getIntegrationCapabilities,
   listIntegrationConnections,
   listIntegrationSources,
   setIntegrationSourceMode,
   setIntegrationSourceSelected,
+  staleAutoSyncConnections,
   startOAuthConnection,
   syncExternalIntegration,
   type IntegrationCapabilities,
@@ -41,6 +43,12 @@ import type { NewScheduleEvent } from './useSchedule'
 
 type SyncableProvider = 'google' | 'microsoft' | 'todoist' | 'ics' | 'caldav'
 type BusyProvider = SyncableProvider | 'apple' | 'android' | null
+interface LastSyncSummary {
+  provider: string
+  result: IntegrationSyncResult
+  automatic: boolean
+  completedAt: string
+}
 
 const LABEL: Record<SyncableProvider, string> = {
   google: 'Google',
@@ -63,6 +71,7 @@ interface Options {
   onProfileChange: (profile: Profile) => void
   events: EventItem[]
   todos: Todo[]
+  online?: boolean
   onAddEvent: (event: NewScheduleEvent) => Promise<boolean>
   onExternalDataChanged: () => void
 }
@@ -72,6 +81,7 @@ export function useGoogleIntegration({
   onProfileChange,
   events,
   todos,
+  online = true,
   onAddEvent,
   onExternalDataChanged,
 }: Options) {
@@ -81,10 +91,12 @@ export function useGoogleIntegration({
   const [scanning, setScanning] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [syncingProvider, setSyncingProvider] = useState<BusyProvider>(null)
-  const [catalogLoading, setCatalogLoading] = useState(false)
+  const [catalogLoading, setCatalogLoading] = useState(true)
   const [sources, setSources] = useState<IntegrationSource[]>([])
   const [connections, setConnections] = useState<IntegrationConnection[]>([])
   const [capabilities, setCapabilities] = useState(EMPTY_CAPABILITIES)
+  const [sourcePendingIds, setSourcePendingIds] = useState<Set<string>>(new Set())
+  const [lastSyncSummary, setLastSyncSummary] = useState<LastSyncSummary | null>(null)
   const [extracted, setExtracted] = useState<ExtractedEvent[]>([])
   const [addingExtracted, setAddingExtracted] = useState(false)
   const [consentBusy, setConsentBusy] = useState(false)
@@ -94,6 +106,8 @@ export function useGoogleIntegration({
   const catalogLoadingRef = useRef(false)
   const scanningRef = useRef(false)
   const addingExtractedRef = useRef(false)
+  const sourcePendingRef = useRef(new Set<string>())
+  const autoSyncAttemptedRef = useRef(new Set<string>())
   const gmailConsentGranted = hasCurrentGmailConsent(profile)
   const nativeDeviceAvailable = isDeviceCalendarAvailable()
   const nativeDeviceProvider = deviceProvider()
@@ -138,19 +152,30 @@ export function useGoogleIntegration({
         message: requestErrorMessage(error, '외부 연동 설정을 불러오지 못했습니다.'),
         tone: 'warning',
       })
+    }).finally(() => {
+      if (active) setCatalogLoading(false)
     })
 
     const url = new URL(window.location.href)
     const result = url.searchParams.get('integration')
     if (result) {
+      const reason = url.searchParams.get('reason')
       url.searchParams.delete('integration')
       url.searchParams.delete('reason')
       window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
       const provider = result.split('-')[0]
       if (result.endsWith('-connected')) {
-        notify({ message: `${LABEL[provider as SyncableProvider] ?? provider} 계정이 연결되었습니다.`, tone: 'success' })
+        notify({
+          message: `${LABEL[provider as SyncableProvider] ?? provider} 계정이 연결되었습니다. 이제 가져올 목록을 확인해주세요.`,
+          tone: 'success',
+        })
       } else {
-        notify({ message: '외부 계정을 연결하지 못했습니다. 설정을 확인해주세요.', tone: 'error' })
+        const detail = reason === 'access_denied'
+          ? '권한 승인이 취소되었습니다.'
+          : reason === 'expired'
+            ? '연결 시간이 만료되었습니다. 다시 시도해주세요.'
+            : '계정 승인 과정이 완료되지 않았습니다.'
+        notify({ message: `외부 계정을 연결하지 못했습니다. ${detail}`, tone: 'error' })
       }
     }
     return () => { active = false }
@@ -232,6 +257,10 @@ export function useGoogleIntegration({
   }
 
   const connectOAuth = async (provider: 'google' | 'microsoft' | 'todoist') => {
+    if (!online) {
+      notify({ message: '인터넷 연결을 확인한 뒤 다시 시도해주세요.', tone: 'warning' })
+      return
+    }
     if (catalogLoadingRef.current) return
     catalogLoadingRef.current = true
     setCatalogLoading(true)
@@ -258,22 +287,38 @@ export function useGoogleIntegration({
     }
   }
 
-  const syncProvider = async (provider: SyncableProvider) => {
+  const syncProvider = async (
+    provider: SyncableProvider,
+    options: { automatic?: boolean } = {},
+  ) => {
+    if (!online) {
+      notify({ message: '인터넷 연결을 확인한 뒤 다시 시도해주세요.', tone: 'warning' })
+      return
+    }
     if (!connection(provider) || syncingRef.current) return
     syncingRef.current = true
     setSyncing(true)
     setSyncingProvider(provider)
-    setMessage(`${LABEL[provider]} 일정과 할 일을 동기화하는 중…`)
+    setMessage(`${options.automatic ? '자동으로 ' : ''}${LABEL[provider]} 일정과 할 일을 동기화하는 중…`)
     try {
       const result = await syncExternalIntegration(supabase, provider)
       setMessage(formatSyncResult(LABEL[provider], result))
+      setLastSyncSummary({
+        provider: LABEL[provider],
+        result,
+        automatic: Boolean(options.automatic),
+        completedAt: new Date().toISOString(),
+      })
       onExternalDataChanged()
       await reloadIntegrationState()
-      notify({ message: `${LABEL[provider]} 동기화를 완료했습니다.`, tone: 'success' })
+      if (!options.automatic) {
+        notify({ message: `${LABEL[provider]} 동기화를 완료했습니다.`, tone: 'success' })
+      }
     } catch (error) {
       console.error(error)
       const failure = requestErrorMessage(error, `${LABEL[provider]} 동기화에 실패했습니다.`)
       setMessage(failure)
+      await reloadIntegrationState().catch(() => {})
       notify({
         message: failure,
         tone: 'error',
@@ -285,6 +330,64 @@ export function useGoogleIntegration({
       setSyncingProvider(null)
     }
   }
+
+  const refreshProviderSources = async (
+    provider: 'google' | 'microsoft' | 'todoist',
+  ) => {
+    if (!online) {
+      notify({ message: '인터넷 연결을 확인한 뒤 다시 시도해주세요.', tone: 'warning' })
+      return
+    }
+    if (!connection(provider) || catalogLoadingRef.current || syncingRef.current) return
+    catalogLoadingRef.current = true
+    setCatalogLoading(true)
+    setMessage(`${LABEL[provider]} 캘린더와 목록을 확인하는 중…`)
+    try {
+      const result = await discoverExternalSources(supabase, provider)
+      const next = await reloadIntegrationState()
+      const discovered = next.sources.filter((source) => source.provider === provider).length
+      setMessage(`${LABEL[provider]}에서 ${discovered}개 목록을 찾았습니다. 가져올 목록과 방식을 선택해주세요.`)
+      notify({
+        message: `${LABEL[provider]} 목록 ${discovered || result.sources}개를 확인했습니다.`,
+        tone: 'success',
+      })
+    } catch (error) {
+      console.error(error)
+      const failure = requestErrorMessage(error, `${LABEL[provider]} 목록을 확인하지 못했습니다.`)
+      setMessage(failure)
+      await reloadIntegrationState().catch(() => {})
+      notify({
+        message: failure,
+        tone: 'error',
+        action: {
+          label: '재시도',
+          onClick: () => { void refreshProviderSources(provider) },
+        },
+      })
+    } finally {
+      catalogLoadingRef.current = false
+      setCatalogLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!online || !connections.length || catalogLoading || syncingRef.current) return
+    const eligible = staleAutoSyncConnections(connections)
+    const pending = eligible.filter((item) => {
+      const attemptKey = `${item.id}:${item.last_synced_at ?? 'never'}`
+      if (autoSyncAttemptedRef.current.has(attemptKey)) return false
+      autoSyncAttemptedRef.current.add(attemptKey)
+      return true
+    })
+    if (!pending.length) return
+    void (async () => {
+      for (const item of pending) {
+        await syncProvider(item.provider as SyncableProvider, { automatic: true })
+      }
+    })()
+    // Connections are the server-owned source of truth for stale auto-sync.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [catalogLoading, connections, online])
 
   const disconnectProvider = async (provider: SyncableProvider) => {
     const target = connection(provider)
@@ -308,6 +411,10 @@ export function useGoogleIntegration({
     username?: string
     password?: string
   }) => {
+    if (!online) {
+      notify({ message: '인터넷 연결을 확인한 뒤 다시 시도해주세요.', tone: 'warning' })
+      return false
+    }
     if (catalogLoadingRef.current) return false
     catalogLoadingRef.current = true
     setCatalogLoading(true)
@@ -330,6 +437,10 @@ export function useGoogleIntegration({
   }
 
   const importIcs = async (file: File) => {
+    if (!online) {
+      notify({ message: '인터넷 연결을 확인한 뒤 다시 시도해주세요.', tone: 'warning' })
+      return
+    }
     if (catalogLoadingRef.current) return
     const acceptedType = file.type === ''
       || file.type === 'text/calendar'
@@ -362,6 +473,13 @@ export function useGoogleIntegration({
   }
 
   const toggleSource = async (source: IntegrationSource) => {
+    if (!online) {
+      notify({ message: '인터넷 연결을 확인한 뒤 다시 시도해주세요.', tone: 'warning' })
+      return
+    }
+    if (sourcePendingRef.current.has(source.id)) return
+    sourcePendingRef.current.add(source.id)
+    setSourcePendingIds(new Set(sourcePendingRef.current))
     const selected = !source.selected
     setSources((current) => current.map((item) => item.id === source.id ? { ...item, selected } : item))
     try {
@@ -369,10 +487,20 @@ export function useGoogleIntegration({
     } catch (error) {
       setSources((current) => current.map((item) => item.id === source.id ? source : item))
       notify({ message: requestErrorMessage(error, '동기화 목록 선택을 저장하지 못했습니다.'), tone: 'error' })
+    } finally {
+      sourcePendingRef.current.delete(source.id)
+      setSourcePendingIds(new Set(sourcePendingRef.current))
     }
   }
 
   const changeSourceMode = async (source: IntegrationSource, syncMode: IntegrationSyncMode) => {
+    if (!online) {
+      notify({ message: '인터넷 연결을 확인한 뒤 다시 시도해주세요.', tone: 'warning' })
+      return
+    }
+    if (sourcePendingRef.current.has(source.id) || source.sync_mode === syncMode) return
+    sourcePendingRef.current.add(source.id)
+    setSourcePendingIds(new Set(sourcePendingRef.current))
     const previous = source.sync_mode
     setSources((current) => current.map((item) => item.id === source.id ? { ...item, sync_mode: syncMode } : item))
     try {
@@ -380,10 +508,17 @@ export function useGoogleIntegration({
     } catch (error) {
       setSources((current) => current.map((item) => item.id === source.id ? { ...item, sync_mode: previous } : item))
       notify({ message: requestErrorMessage(error, '동기화 모드를 저장하지 못했습니다.'), tone: 'error' })
+    } finally {
+      sourcePendingRef.current.delete(source.id)
+      setSourcePendingIds(new Set(sourcePendingRef.current))
     }
   }
 
   const connectDevice = async () => {
+    if (!online) {
+      notify({ message: '인터넷 연결을 확인한 뒤 다시 시도해주세요.', tone: 'warning' })
+      return
+    }
     if (!nativeDeviceAvailable || catalogLoadingRef.current) return
     catalogLoadingRef.current = true
     setCatalogLoading(true)
@@ -403,6 +538,10 @@ export function useGoogleIntegration({
   }
 
   const syncDevice = async () => {
+    if (!online) {
+      notify({ message: '인터넷 연결을 확인한 뒤 다시 시도해주세요.', tone: 'warning' })
+      return
+    }
     if (!nativeDeviceProvider || syncingRef.current) return
     syncingRef.current = true
     setSyncing(true)
@@ -419,6 +558,12 @@ export function useGoogleIntegration({
       }
       const result = await syncDeviceCalendar(supabase, profile.id, activeSources)
       setMessage(formatSyncResult('기기', result))
+      setLastSyncSummary({
+        provider: '기기',
+        result,
+        automatic: false,
+        completedAt: new Date().toISOString(),
+      })
       onExternalDataChanged()
       await reloadIntegrationState()
       notify({ message: '기기 일정 동기화를 완료했습니다.', tone: 'success' })
@@ -439,6 +584,10 @@ export function useGoogleIntegration({
   }
 
   const scanGmail = async () => {
+    if (!online) {
+      notify({ message: '인터넷 연결을 확인한 뒤 다시 시도해주세요.', tone: 'warning' })
+      return
+    }
     if (!providerToken || scanningRef.current) return
     if (!gmailConsentGranted) {
       notify({ message: 'Gmail AI 처리에 먼저 동의해주세요.', tone: 'warning' })
@@ -512,8 +661,10 @@ export function useGoogleIntegration({
     nativeDeviceAvailable,
     nativeDeviceProvider,
     catalogLoading,
+    sourcePendingIds,
     syncing,
     syncingProvider,
+    lastSyncSummary,
     scanning,
     message,
     extracted,
@@ -527,7 +678,9 @@ export function useGoogleIntegration({
     connectMicrosoft: () => connectOAuth('microsoft'),
     connectTodoist: () => connectOAuth('todoist'),
     syncGoogle: () => syncProvider('google'),
-    refreshGoogleCatalog: () => syncProvider('google'),
+    refreshGoogleCatalog: () => refreshProviderSources('google'),
+    refreshMicrosoftCatalog: () => refreshProviderSources('microsoft'),
+    refreshTodoistCatalog: () => refreshProviderSources('todoist'),
     syncMicrosoft: () => syncProvider('microsoft'),
     syncTodoist: () => syncProvider('todoist'),
     syncIcsFeed: () => syncProvider('ics'),

@@ -39,6 +39,32 @@ export interface IntegrationConnection {
   last_error: string | null
 }
 
+export const AUTO_SYNC_INTERVAL_MS = 15 * 60_000
+
+export function staleAutoSyncConnections(
+  connections: IntegrationConnection[],
+  now = Date.now(),
+): IntegrationConnection[] {
+  const supported = new Set<IntegrationProvider>([
+    'google',
+    'microsoft',
+    'todoist',
+    'ics',
+    'caldav',
+  ])
+  return connections.filter((connection) => {
+    if (
+      connection.status !== 'active'
+      || !connection.auto_sync_enabled
+      || !supported.has(connection.provider)
+      || !connection.last_synced_at
+    ) return false
+    const lastSyncedAt = new Date(connection.last_synced_at).getTime()
+    return Number.isFinite(lastSyncedAt)
+      && lastSyncedAt < now - AUTO_SYNC_INTERVAL_MS
+  })
+}
+
 export interface IntegrationSource {
   id: string
   user_id: string
@@ -248,6 +274,18 @@ export async function syncExternalIntegration(
 ): Promise<IntegrationSyncResult> {
   const { data, error } = await client.functions.invoke('integration-sync', {
     body: { provider },
+  })
+  if (error) throw error
+  if (data?.error) throw new Error(data.error)
+  return data as IntegrationSyncResult
+}
+
+export async function discoverExternalSources(
+  client: SupabaseClient,
+  provider: 'google' | 'microsoft' | 'todoist',
+): Promise<IntegrationSyncResult> {
+  const { data, error } = await client.functions.invoke('integration-sync', {
+    body: { provider, action: 'discover' },
   })
   if (error) throw error
   if (data?.error) throw new Error(data.error)

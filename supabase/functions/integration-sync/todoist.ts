@@ -106,6 +106,7 @@ async function refreshSources(
       metadata: {
         web_url: project.url ?? `https://app.todoist.com/app/project/${project.id}`,
       },
+      last_synced_at: previous?.last_synced_at ?? null,
       last_error: null,
     }
   })
@@ -290,6 +291,7 @@ async function pullTasks(
 export async function syncTodoist(
   userId: string,
   connection: JsonRecord,
+  options: { discoverOnly?: boolean } = {},
 ): Promise<SyncResult> {
   const token = await tokenFor(connection)
   const previousToken = connection.provider_config?.sync_token ?? '*'
@@ -307,6 +309,7 @@ export async function syncTodoist(
     sources = await refreshSources(userId, connection.id, full.projects ?? [])
   }
   const result = emptyResult(sources.length)
+  if (options.discoverOnly) return result
   const pulled = await pullTasks(userId, response.items ?? [], sources)
   result.importedTasks += pulled.importedTasks ?? 0
   result.deletedTasks += pulled.deletedTasks ?? 0
