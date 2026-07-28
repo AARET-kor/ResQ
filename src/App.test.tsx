@@ -19,7 +19,11 @@ vi.mock('./lib/supabase', () => ({ supabase: {} }))
 
 vi.mock('./mascot/useMascot', () => ({ useMascot: () => null }))
 
-vi.mock('./home/HomeSections', () => ({ HomeSections: () => null }))
+vi.mock('./pages/HomePage', () => ({ HomePage: () => <div>홈 요약</div> }))
+vi.mock('./pages/PlanPage', () => ({ PlanPage: () => <div>일정 페이지</div> }))
+vi.mock('./pages/TeamPage', () => ({ TeamPage: () => <div>팀 페이지</div> }))
+vi.mock('./pages/PapersPage', () => ({ PapersPage: () => <div>논문 페이지</div> }))
+vi.mock('./pages/IntegrationsPage', () => ({ IntegrationsPage: () => <div>연동 페이지</div> }))
 
 import App from './App'
 import type { Profile } from './lib/profile'
@@ -37,7 +41,10 @@ function authed() {
 }
 
 describe('App gating', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    window.history.replaceState({}, '', '/')
+  })
 
   it('shows the login screen when there is no session', () => {
     useAuth.mockReturnValue({ session: null, loading: false, signIn: vi.fn(), signOut: vi.fn() })
@@ -65,5 +72,15 @@ describe('App gating', () => {
     getProfile.mockResolvedValue(fullProfile)
     render(<App />)
     await waitFor(() => expect(screen.getByText(/길동/)).toBeInTheDocument())
+    expect(screen.getByText('홈 요약')).toBeInTheDocument()
+  })
+
+  it('renders a focused feature page for a direct route', async () => {
+    window.history.replaceState({}, '', '/papers')
+    authed()
+    getProfile.mockResolvedValue(fullProfile)
+    render(<App />)
+    await waitFor(() => expect(screen.getByText('논문 페이지')).toBeInTheDocument())
+    expect(screen.getByRole('navigation', { name: '주요 페이지' })).toBeInTheDocument()
   })
 })

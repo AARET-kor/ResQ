@@ -59,7 +59,7 @@ describe('Hero (figurine carousel)', () => {
   it('exposes working quick links (Gmail, schedule anchor, specialty society)', () => {
     render(<Hero profile={profile} mascot={mascot} onSignOut={() => {}} now={new Date('2028-02-18')} />)
     expect(screen.getByRole('link', { name: 'Gmail 열기' })).toHaveAttribute('href', 'https://mail.google.com')
-    expect(screen.getByRole('link', { name: '일정 · 캘린더 연동' })).toHaveAttribute('href', '#schedule')
+    expect(screen.getByRole('link', { name: '일정 · 캘린더 연동' })).toHaveAttribute('href', '/integrations')
     // 내과 → 대한내과학회 (societyFor config)
     expect(screen.getByRole('link', { name: '전공 학회 홈페이지' }).getAttribute('href')).toContain('kaim')
   })

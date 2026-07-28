@@ -9,13 +9,16 @@ import type { MascotState } from '../mascot/state'
 import type { Stage } from '../mascot/stage'
 import type { Mood } from '../mascot/mood'
 import type { Profile } from '../lib/profile'
+import { AppLink } from '../app/AppLink'
+import type { AppRoute } from '../app/routes'
 
 const NAV = [
-  { label: '홈', href: '#', active: true },
-  { label: '논문', href: '#papers', active: true },
-  { label: '캘린더', href: '#schedule', active: true },
-  { label: '메일', href: '#', active: false },
-  { label: '설정', href: '#', active: true, settings: true },
+  { label: '홈', route: 'home' as AppRoute },
+  { label: '일정', route: 'plan' as AppRoute },
+  { label: '팀', route: 'team' as AppRoute },
+  { label: '논문', route: 'papers' as AppRoute },
+  { label: '연동', route: 'integrations' as AppRoute },
+  { label: '설정', settings: true },
 ]
 
 const STAGES: Stage[] = ['INTERN', 'JUNIOR', 'SENIOR', 'CHIEF']
@@ -214,16 +217,12 @@ export function Hero({
                         {n.label}
                       </button>
                     ) : (
-                      <a
-                        href={n.href}
-                        aria-disabled={!n.active}
-                        className={`font-grotesk text-[13px] uppercase transition ${
-                          n.active ? 'hover:text-neon' : 'cursor-not-allowed text-cream/40'
-                        }`}
+                      <AppLink
+                        to={n.route!}
+                        className="font-grotesk text-[13px] uppercase transition hover:text-neon"
                       >
                         {n.label}
-                        {!n.active && <span className="ml-1 text-[9px]">(곧)</span>}
-                      </a>
+                      </AppLink>
                     )}
                   </li>
                 ))}
@@ -234,19 +233,31 @@ export function Hero({
             <div className="hidden gap-2 lg:flex">
               {[
                 { Icon: Mail, label: 'Gmail 열기', href: 'https://mail.google.com', external: true },
-                { Icon: Bird, label: '일정 · 캘린더 연동', href: '#schedule', external: false },
+                { Icon: Bird, label: '일정 · 캘린더 연동', href: '/integrations', external: false },
                 { Icon: Globe, label: '전공 학회 홈페이지', href: societyFor(profile.specialty), external: true },
               ].map(({ Icon, label, href, external }) => (
                 <LiquidGlass key={label} className="rounded-[1rem]">
-                  <a
-                    href={href}
-                    aria-label={label}
-                    title={label}
-                    {...(external ? { target: '_blank', rel: 'noreferrer' } : {})}
-                    className="flex h-[48px] w-[48px] items-center justify-center transition hover:bg-white/10 hover:text-neon"
-                  >
-                    <Icon size={18} />
-                  </a>
+                  {external ? (
+                    <a
+                      href={href}
+                      aria-label={label}
+                      title={label}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex h-[48px] w-[48px] items-center justify-center transition hover:bg-white/10 hover:text-neon"
+                    >
+                      <Icon size={18} />
+                    </a>
+                  ) : (
+                    <AppLink
+                      to="integrations"
+                      aria-label={label}
+                      title={label}
+                      className="flex h-[48px] w-[48px] items-center justify-center transition hover:bg-white/10 hover:text-neon"
+                    >
+                      <Icon size={18} />
+                    </AppLink>
+                  )}
                 </LiquidGlass>
               ))}
             </div>

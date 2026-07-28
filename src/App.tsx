@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { useAuth } from './auth/AuthProvider'
 import { supabase } from './lib/supabase'
 import { getProfile, upsertProfile, isProfileComplete, type Profile } from './lib/profile'
@@ -7,8 +7,26 @@ import { Onboarding, type OnboardingValues } from './components/Onboarding'
 import { Hero } from './components/Hero'
 import { SettingsModal } from './components/SettingsModal'
 import { TextureOverlay } from './components/TextureOverlay'
+import { AppHeader } from './components/AppHeader'
 import { useMascot } from './mascot/useMascot'
-import { HomeSections } from './home/HomeSections'
+import { useAppRoute } from './app/routes'
+import { HomePage } from './pages/HomePage'
+
+const PlanPage = lazy(() => import('./pages/PlanPage').then(({ PlanPage: page }) => ({ default: page })))
+const TeamPage = lazy(() => import('./pages/TeamPage').then(({ TeamPage: page }) => ({ default: page })))
+const PapersPage = lazy(() => import('./pages/PapersPage').then(({ PapersPage: page }) => ({ default: page })))
+const IntegrationsPage = lazy(() => import('./pages/IntegrationsPage').then(({ IntegrationsPage: page }) => ({ default: page })))
+
+function PageLoading() {
+  return (
+    <div
+      className="flex min-h-[55vh] items-center justify-center font-mono text-xs uppercase tracking-[0.24em] text-cream/50"
+      role="status"
+    >
+      workspace loading…
+    </div>
+  )
+}
 
 export default function App() {
   const {
@@ -26,6 +44,7 @@ export default function App() {
   const [profileLoaded, setProfileLoaded] = useState(false)
   const [onboardError, setOnboardError] = useState<string | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const route = useAppRoute()
 
   const userId = session?.user.id
 
@@ -74,18 +93,51 @@ export default function App() {
     </>
   )
   if (!isProfileComplete(profile)) return (<><TextureOverlay /><Onboarding onSubmit={handleOnboard} error={onboardError} /></>)
+  const activeProfile = profile!
+  const page = route === 'plan'
+    ? <PlanPage profile={activeProfile} onProfileChange={setProfile} />
+    : route === 'team'
+      ? <TeamPage profile={activeProfile} />
+      : route === 'papers'
+        ? <PapersPage profile={activeProfile} onProfileChange={setProfile} />
+        : route === 'integrations'
+          ? <IntegrationsPage profile={activeProfile} onProfileChange={setProfile} />
+          : null
   return (
     <>
       <TextureOverlay />
-      <Hero profile={profile!} mascot={mascot} onSignOut={signOut} onOpenSettings={() => setSettingsOpen(true)} />
-      <HomeSections profile={profile!} onProfileChange={setProfile} />
+      {route === 'home' ? (
+        <>
+          <Hero
+            profile={activeProfile}
+            mascot={mascot}
+            onSignOut={signOut}
+            onOpenSettings={() => setSettingsOpen(true)}
+          />
+          <HomePage profile={activeProfile} onProfileChange={setProfile} />
+        </>
+      ) : (
+        <>
+          <AppHeader
+            route={route}
+            profile={activeProfile}
+            onSignOut={signOut}
+            onOpenSettings={() => setSettingsOpen(true)}
+          />
+          <main>
+            <Suspense fallback={<PageLoading />}>
+              {page}
+            </Suspense>
+          </main>
+        </>
+      )}
       {settingsOpen && (
         <SettingsModal
-          profile={profile!}
+          profile={activeProfile}
           onClose={() => setSettingsOpen(false)}
           onSave={async (v) => {
             try {
-              const saved = await upsertProfile(supabase, { id: profile!.id, ...v })
+              const saved = await upsertProfile(supabase, { id: activeProfile.id, ...v })
               setProfile(saved)
               setSettingsOpen(false)
             } catch (e) {
@@ -93,7 +145,7 @@ export default function App() {
               // persist the primary specialty change instead of losing both.
               console.error(e)
               try {
-                const saved = await upsertProfile(supabase, { id: profile!.id, specialty: v.specialty })
+                const saved = await upsertProfile(supabase, { id: activeProfile.id, specialty: v.specialty })
                 setProfile(saved)
                 setSettingsOpen(false)
               } catch (e2) { console.error(e2) }
