@@ -1,21 +1,32 @@
 import { useEffect, useRef, useState } from 'react'
-import { Capacitor } from '@capacitor/core'
 import { Browser } from '@capacitor/browser'
+import { Capacitor } from '@capacitor/core'
 import { useAuth } from '../../auth/AuthProvider'
-import { buildICS } from '../../lib/ics'
-import { listRecentEmailTexts, requestEventExtraction, type ExtractedEvent } from '../../lib/gmail'
-import {
-  GOOGLE_AUTH_ERROR,
-  refreshGoogleSources,
-  syncGoogleIntegration,
-} from '../../lib/googleSync'
-import type { EventItem } from '../../lib/events'
-import type { Todo } from '../../lib/todos'
-import type { Profile } from '../../lib/profile'
-import { supabase } from '../../lib/supabase'
-import type { NewScheduleEvent } from './useSchedule'
 import { useNotifications } from '../../feedback/notificationContext'
 import { requestErrorMessage } from '../../feedback/requestError'
+import { connectDeviceCalendar, deviceProvider, isDeviceCalendarAvailable, syncDeviceCalendar } from '../../lib/deviceCalendar'
+import type { EventItem } from '../../lib/events'
+import { listRecentEmailTexts, requestEventExtraction, type ExtractedEvent } from '../../lib/gmail'
+import { buildICS } from '../../lib/ics'
+import { importICSFile } from '../../lib/icsImport'
+import {
+  configureDirectIntegration,
+  disconnectIntegration,
+  getIntegrationCapabilities,
+  listIntegrationConnections,
+  listIntegrationSources,
+  setIntegrationSourceMode,
+  setIntegrationSourceSelected,
+  startOAuthConnection,
+  syncExternalIntegration,
+  type IntegrationCapabilities,
+  type IntegrationConnection,
+  type IntegrationProvider,
+  type IntegrationSource,
+  type IntegrationSyncMode,
+  type IntegrationSyncResult,
+} from '../../lib/integrations'
+import type { Profile } from '../../lib/profile'
 import {
   deleteMyGmailAuditEvents,
   grantGmailAiConsent,
@@ -24,25 +35,30 @@ import {
   revokeGmailAiConsent,
   type GmailAuditEvent,
 } from '../../lib/privacy'
-import {
-  disconnectIntegration,
-  listIntegrationConnections,
-  listIntegrationSources,
-  setIntegrationSourceSelected,
-  startMicrosoftConnection,
-  syncMicrosoftIntegration,
-  type IntegrationConnection,
-  type IntegrationSource,
-  type IntegrationSyncResult,
-} from '../../lib/integrations'
-import {
-  connectDeviceCalendar,
-  deviceProvider,
-  isDeviceCalendarAvailable,
-  syncDeviceCalendar,
-} from '../../lib/deviceCalendar'
+import { supabase } from '../../lib/supabase'
+import type { Todo } from '../../lib/todos'
+import type { NewScheduleEvent } from './useSchedule'
 
-interface UseGoogleIntegrationOptions {
+type SyncableProvider = 'google' | 'microsoft' | 'todoist' | 'ics' | 'caldav'
+type BusyProvider = SyncableProvider | 'apple' | 'android' | null
+
+const LABEL: Record<SyncableProvider, string> = {
+  google: 'Google',
+  microsoft: 'Microsoft',
+  todoist: 'Todoist',
+  ics: 'ICS',
+  caldav: 'CalDAV',
+}
+
+const EMPTY_CAPABILITIES: IntegrationCapabilities = {
+  google: false,
+  microsoft: false,
+  todoist: false,
+  ics: true,
+  caldav: false,
+}
+
+interface Options {
   profile: Profile
   onProfileChange: (profile: Profile) => void
   events: EventItem[]
@@ -58,18 +74,17 @@ export function useGoogleIntegration({
   todos,
   onAddEvent,
   onExternalDataChanged,
-}: UseGoogleIntegrationOptions) {
+}: Options) {
   const { providerToken, reconnectGoogle } = useAuth()
   const { notify } = useNotifications()
   const [message, setMessage] = useState<string | null>(null)
   const [scanning, setScanning] = useState(false)
   const [syncing, setSyncing] = useState(false)
-  const [syncingProvider, setSyncingProvider] = useState<
-    'google' | 'microsoft' | 'apple' | 'android' | null
-  >(null)
+  const [syncingProvider, setSyncingProvider] = useState<BusyProvider>(null)
   const [catalogLoading, setCatalogLoading] = useState(false)
   const [sources, setSources] = useState<IntegrationSource[]>([])
   const [connections, setConnections] = useState<IntegrationConnection[]>([])
+  const [capabilities, setCapabilities] = useState(EMPTY_CAPABILITIES)
   const [extracted, setExtracted] = useState<ExtractedEvent[]>([])
   const [addingExtracted, setAddingExtracted] = useState(false)
   const [consentBusy, setConsentBusy] = useState(false)
@@ -80,16 +95,21 @@ export function useGoogleIntegration({
   const scanningRef = useRef(false)
   const addingExtractedRef = useRef(false)
   const gmailConsentGranted = hasCurrentGmailConsent(profile)
-  const googleSources = sources.filter((source) => source.provider === 'google')
-  const microsoftSources = sources.filter((source) => source.provider === 'microsoft')
-  const microsoftConnection = connections.find(
-    (connection) => connection.provider === 'microsoft' && connection.status === 'active',
-  ) ?? null
   const nativeDeviceAvailable = isDeviceCalendarAvailable()
   const nativeDeviceProvider = deviceProvider()
-  const deviceSources = nativeDeviceProvider
-    ? sources.filter((source) => source.provider === nativeDeviceProvider)
-    : []
+
+  const connection = (provider: IntegrationProvider) => connections.find(
+    (item) => item.provider === provider && ['active', 'error'].includes(item.status),
+  ) ?? null
+  const sourcesFor = (provider: IntegrationProvider) => sources.filter(
+    (source) => source.provider === provider,
+  )
+  const googleConnection = connection('google')
+  const microsoftConnection = connection('microsoft')
+  const todoistConnection = connection('todoist')
+  const icsConnection = connection('ics')
+  const caldavConnection = connection('caldav')
+  const deviceSources = nativeDeviceProvider ? sourcesFor(nativeDeviceProvider) : []
 
   const reloadIntegrationState = async () => {
     const [nextSources, nextConnections] = await Promise.all([
@@ -106,10 +126,12 @@ export function useGoogleIntegration({
     Promise.all([
       listIntegrationSources(supabase, profile.id),
       listIntegrationConnections(supabase, profile.id),
-    ]).then(([nextSources, nextConnections]) => {
+      getIntegrationCapabilities(supabase).catch(() => EMPTY_CAPABILITIES),
+    ]).then(([nextSources, nextConnections, nextCapabilities]) => {
       if (!active) return
       setSources(nextSources)
       setConnections(nextConnections)
+      setCapabilities(nextCapabilities)
     }).catch((error) => {
       console.error(error)
       if (active) notify({
@@ -119,18 +141,16 @@ export function useGoogleIntegration({
     })
 
     const url = new URL(window.location.href)
-    const integrationResult = url.searchParams.get('integration')
-    if (integrationResult) {
+    const result = url.searchParams.get('integration')
+    if (result) {
       url.searchParams.delete('integration')
       url.searchParams.delete('reason')
       window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
-      if (integrationResult === 'microsoft-connected') {
-        notify({ message: 'Microsoft 계정이 연결되었습니다.', tone: 'success' })
-      } else if (integrationResult === 'microsoft-error') {
-        notify({
-          message: 'Microsoft 계정을 연결하지 못했습니다. 설정을 확인해주세요.',
-          tone: 'error',
-        })
+      const provider = result.split('-')[0]
+      if (result.endsWith('-connected')) {
+        notify({ message: `${LABEL[provider as SyncableProvider] ?? provider} 계정이 연결되었습니다.`, tone: 'success' })
+      } else {
+        notify({ message: '외부 계정을 연결하지 못했습니다. 설정을 확인해주세요.', tone: 'error' })
       }
     }
     return () => { active = false }
@@ -151,7 +171,6 @@ export function useGoogleIntegration({
   useEffect(() => {
     if (gmailConsentGranted) refreshAudits()
     else setAudits([])
-    // The profile consent fields are the intended reload trigger.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     gmailConsentGranted,
@@ -169,10 +188,7 @@ export function useGoogleIntegration({
       return true
     } catch (error) {
       console.error(error)
-      notify({
-        message: requestErrorMessage(error, 'Gmail AI 처리 동의를 저장하지 못했습니다.'),
-        tone: 'error',
-      })
+      notify({ message: requestErrorMessage(error, 'Gmail AI 처리 동의를 저장하지 못했습니다.'), tone: 'error' })
       return false
     } finally {
       setConsentBusy(false)
@@ -187,10 +203,7 @@ export function useGoogleIntegration({
       notify({ message: 'Gmail AI 처리 동의를 철회했습니다.', tone: 'success' })
     } catch (error) {
       console.error(error)
-      notify({
-        message: requestErrorMessage(error, 'Gmail AI 처리 동의를 철회하지 못했습니다.'),
-        tone: 'error',
-      })
+      notify({ message: requestErrorMessage(error, 'Gmail AI 처리 동의를 철회하지 못했습니다.'), tone: 'error' })
     } finally {
       setConsentBusy(false)
     }
@@ -205,10 +218,7 @@ export function useGoogleIntegration({
       notify({ message: 'Gmail AI 처리 기록을 삭제했습니다.', tone: 'success' })
     } catch (error) {
       console.error(error)
-      notify({
-        message: requestErrorMessage(error, 'Gmail AI 처리 기록을 삭제하지 못했습니다.'),
-        tone: 'error',
-      })
+      notify({ message: requestErrorMessage(error, 'Gmail AI 처리 기록을 삭제하지 못했습니다.'), tone: 'error' })
     } finally {
       setDeletingAudits(false)
     }
@@ -221,107 +231,15 @@ export function useGoogleIntegration({
     return `${provider}: 가져오기 ${imported}건 · 보내기 ${pushed}건${deleted ? ` · 삭제 반영 ${deleted}건` : ''}`
   }
 
-  const refreshGoogleCatalog = async () => {
-    if (!providerToken || catalogLoadingRef.current) return googleSources
-    catalogLoadingRef.current = true
-    setCatalogLoading(true)
-    try {
-      const next = await refreshGoogleSources(supabase, profile.id, providerToken)
-      setSources((current) => [
-        ...current.filter((source) => source.provider !== 'google'),
-        ...next,
-      ])
-      return next
-    } catch (error) {
-      console.error(error)
-      const failure = requestErrorMessage(error, 'Google 캘린더와 할 일 목록을 불러오지 못했습니다.')
-      setMessage(failure)
-      notify({
-        message: failure,
-        tone: 'error',
-        action: { label: '다시 연결', onClick: () => { void reconnectGoogle() } },
-      })
-      return []
-    } finally {
-      catalogLoadingRef.current = false
-      setCatalogLoading(false)
-    }
-  }
-
-  const syncGoogle = async () => {
-    if (!providerToken || syncingRef.current) return
-    syncingRef.current = true
-    setSyncing(true)
-    setSyncingProvider('google')
-    setMessage('Google 일정과 할 일을 동기화하는 중…')
-    try {
-      let activeSources = googleSources
-      if (activeSources.length === 0) activeSources = await refreshGoogleCatalog()
-      if (!activeSources.some((source) => source.selected)) {
-        const warning = '동기화할 Google 캘린더 또는 할 일 목록을 하나 이상 선택해주세요.'
-        setMessage(warning)
-        notify({ message: warning, tone: 'warning' })
-        return
-      }
-      const result = await syncGoogleIntegration(
-        supabase,
-        profile.id,
-        providerToken,
-        activeSources,
-      )
-      setMessage(formatSyncResult('Google', result))
-      onExternalDataChanged()
-      await reloadIntegrationState()
-      notify({ message: 'Google 일정과 할 일 동기화를 완료했습니다.', tone: 'success' })
-    } catch (error) {
-      console.error(error)
-      const expired = error instanceof Error && error.message === GOOGLE_AUTH_ERROR
-      const failure = requestErrorMessage(
-        error,
-        expired ? GOOGLE_AUTH_ERROR : 'Google 동기화에 실패했습니다.',
-      )
-      setMessage(failure)
-      notify({
-        message: failure,
-        tone: 'error',
-        action: expired
-          ? { label: '다시 연결', onClick: () => { void reconnectGoogle() } }
-          : { label: '재시도', onClick: () => { void syncGoogle() } },
-      })
-    } finally {
-      syncingRef.current = false
-      setSyncing(false)
-      setSyncingProvider(null)
-    }
-  }
-
-  const toggleSource = async (source: IntegrationSource) => {
-    const selected = !source.selected
-    setSources((current) => current.map((item) => (
-      item.id === source.id ? { ...item, selected } : item
-    )))
-    try {
-      await setIntegrationSourceSelected(supabase, source.id, selected)
-    } catch (error) {
-      console.error(error)
-      setSources((current) => current.map((item) => (
-        item.id === source.id ? source : item
-      )))
-      notify({
-        message: requestErrorMessage(error, '동기화 목록 선택을 저장하지 못했습니다.'),
-        tone: 'error',
-      })
-    }
-  }
-
-  const connectMicrosoft = async () => {
+  const connectOAuth = async (provider: 'google' | 'microsoft' | 'todoist') => {
     if (catalogLoadingRef.current) return
     catalogLoadingRef.current = true
     setCatalogLoading(true)
     try {
       const native = Capacitor.isNativePlatform()
-      const authorizationUrl = await startMicrosoftConnection(
+      const authorizationUrl = await startOAuthConnection(
         supabase,
+        provider,
         native
           ? 'com.resq.medical://integration/callback'
           : `${window.location.origin}${window.location.pathname}`,
@@ -331,7 +249,7 @@ export function useGoogleIntegration({
     } catch (error) {
       console.error(error)
       notify({
-        message: requestErrorMessage(error, 'Microsoft 연결을 시작하지 못했습니다.'),
+        message: requestErrorMessage(error, `${LABEL[provider]} 연결을 시작하지 못했습니다.`),
         tone: 'error',
       })
     } finally {
@@ -340,26 +258,26 @@ export function useGoogleIntegration({
     }
   }
 
-  const syncMicrosoft = async () => {
-    if (!microsoftConnection || syncingRef.current) return
+  const syncProvider = async (provider: SyncableProvider) => {
+    if (!connection(provider) || syncingRef.current) return
     syncingRef.current = true
     setSyncing(true)
-    setSyncingProvider('microsoft')
-    setMessage('Outlook 일정과 Microsoft To Do를 동기화하는 중…')
+    setSyncingProvider(provider)
+    setMessage(`${LABEL[provider]} 일정과 할 일을 동기화하는 중…`)
     try {
-      const result = await syncMicrosoftIntegration(supabase)
-      setMessage(formatSyncResult('Microsoft', result))
+      const result = await syncExternalIntegration(supabase, provider)
+      setMessage(formatSyncResult(LABEL[provider], result))
       onExternalDataChanged()
       await reloadIntegrationState()
-      notify({ message: 'Microsoft 일정과 할 일 동기화를 완료했습니다.', tone: 'success' })
+      notify({ message: `${LABEL[provider]} 동기화를 완료했습니다.`, tone: 'success' })
     } catch (error) {
       console.error(error)
-      const failure = requestErrorMessage(error, 'Microsoft 동기화에 실패했습니다.')
+      const failure = requestErrorMessage(error, `${LABEL[provider]} 동기화에 실패했습니다.`)
       setMessage(failure)
       notify({
         message: failure,
         tone: 'error',
-        action: { label: '재시도', onClick: () => { void syncMicrosoft() } },
+        action: { label: '재시도', onClick: () => { void syncProvider(provider) } },
       })
     } finally {
       syncingRef.current = false
@@ -368,19 +286,100 @@ export function useGoogleIntegration({
     }
   }
 
-  const disconnectMicrosoft = async () => {
-    if (!microsoftConnection) return
+  const disconnectProvider = async (provider: SyncableProvider) => {
+    const target = connection(provider)
+    if (!target) return
     try {
-      await disconnectIntegration(supabase, microsoftConnection.id)
-      setConnections((current) => current.filter((item) => item.id !== microsoftConnection.id))
-      setSources((current) => current.filter((source) => source.provider !== 'microsoft'))
-      notify({ message: 'Microsoft 연결을 해제했습니다.', tone: 'success' })
+      await disconnectIntegration(supabase, target.id)
+      setConnections((current) => current.filter((item) => item.id !== target.id))
+      setSources((current) => current.filter((source) => source.connection_id !== target.id))
+      onExternalDataChanged()
+      notify({ message: `${LABEL[provider]} 연결을 해제했습니다.`, tone: 'success' })
     } catch (error) {
       console.error(error)
+      notify({ message: requestErrorMessage(error, `${LABEL[provider]} 연결을 해제하지 못했습니다.`), tone: 'error' })
+    }
+  }
+
+  const configureDirect = async (values: {
+    provider: 'ics' | 'caldav'
+    endpointUrl: string
+    label?: string
+    username?: string
+    password?: string
+  }) => {
+    if (catalogLoadingRef.current) return false
+    catalogLoadingRef.current = true
+    setCatalogLoading(true)
+    try {
+      await configureDirectIntegration(supabase, values)
+      await reloadIntegrationState()
       notify({
-        message: requestErrorMessage(error, 'Microsoft 연결을 해제하지 못했습니다.'),
-        tone: 'error',
+        message: values.provider === 'ics' ? 'ICS 구독을 연결했습니다.' : 'CalDAV 계정을 연결했습니다.',
+        tone: 'success',
       })
+      return true
+    } catch (error) {
+      console.error(error)
+      notify({ message: requestErrorMessage(error, '구독 연결을 저장하지 못했습니다.'), tone: 'error' })
+      return false
+    } finally {
+      catalogLoadingRef.current = false
+      setCatalogLoading(false)
+    }
+  }
+
+  const importIcs = async (file: File) => {
+    if (catalogLoadingRef.current) return
+    const acceptedType = file.type === ''
+      || file.type === 'text/calendar'
+      || file.type === 'application/ics'
+    if (!acceptedType || !file.name.toLowerCase().endsWith('.ics')) {
+      notify({ message: 'iCalendar(.ics) 파일만 가져올 수 있습니다.', tone: 'error' })
+      return
+    }
+    if (file.size > 5_000_000) {
+      notify({ message: 'ICS 파일은 최대 5MB까지 가져올 수 있습니다.', tone: 'error' })
+      return
+    }
+    catalogLoadingRef.current = true
+    setCatalogLoading(true)
+    try {
+      const result = await importICSFile(supabase, profile.id, file.name, await file.text())
+      await reloadIntegrationState()
+      onExternalDataChanged()
+      notify({
+        message: `ICS에서 일정 ${result.events}건·할 일 ${result.todos}건을 가져왔습니다.`,
+        tone: 'success',
+      })
+    } catch (error) {
+      console.error(error)
+      notify({ message: requestErrorMessage(error, 'ICS 파일을 가져오지 못했습니다.'), tone: 'error' })
+    } finally {
+      catalogLoadingRef.current = false
+      setCatalogLoading(false)
+    }
+  }
+
+  const toggleSource = async (source: IntegrationSource) => {
+    const selected = !source.selected
+    setSources((current) => current.map((item) => item.id === source.id ? { ...item, selected } : item))
+    try {
+      await setIntegrationSourceSelected(supabase, source.id, selected)
+    } catch (error) {
+      setSources((current) => current.map((item) => item.id === source.id ? source : item))
+      notify({ message: requestErrorMessage(error, '동기화 목록 선택을 저장하지 못했습니다.'), tone: 'error' })
+    }
+  }
+
+  const changeSourceMode = async (source: IntegrationSource, syncMode: IntegrationSyncMode) => {
+    const previous = source.sync_mode
+    setSources((current) => current.map((item) => item.id === source.id ? { ...item, sync_mode: syncMode } : item))
+    try {
+      await setIntegrationSourceMode(supabase, source.id, syncMode)
+    } catch (error) {
+      setSources((current) => current.map((item) => item.id === source.id ? { ...item, sync_mode: previous } : item))
+      notify({ message: requestErrorMessage(error, '동기화 모드를 저장하지 못했습니다.'), tone: 'error' })
     }
   }
 
@@ -394,16 +393,9 @@ export function useGoogleIntegration({
         ...current.filter((source) => source.provider !== result.permissions.platform),
         ...result.sources,
       ])
-      const label = result.permissions.platform === 'apple'
-        ? 'Apple Calendar·Reminders'
-        : '기기 캘린더'
-      notify({ message: `${label} 접근이 연결되었습니다.`, tone: 'success' })
+      notify({ message: '기기 캘린더 접근이 연결되었습니다.', tone: 'success' })
     } catch (error) {
-      console.error(error)
-      notify({
-        message: requestErrorMessage(error, '기기 캘린더 접근을 연결하지 못했습니다.'),
-        tone: 'error',
-      })
+      notify({ message: requestErrorMessage(error, '기기 캘린더 접근을 연결하지 못했습니다.'), tone: 'error' })
     } finally {
       catalogLoadingRef.current = false
       setCatalogLoading(false)
@@ -415,55 +407,28 @@ export function useGoogleIntegration({
     syncingRef.current = true
     setSyncing(true)
     setSyncingProvider(nativeDeviceProvider)
-    const providerLabel = nativeDeviceProvider === 'apple'
-      ? 'Apple Calendar·Reminders'
-      : '기기 캘린더'
-    setMessage(`${providerLabel}를 동기화하는 중…`)
     try {
       let activeSources = deviceSources
-      if (activeSources.length === 0) {
+      if (!activeSources.length) {
         const result = await connectDeviceCalendar(supabase, profile.id)
         activeSources = result.sources
-        setSources((current) => [
-          ...current.filter((source) => source.provider !== nativeDeviceProvider),
-          ...activeSources,
-        ])
       }
       if (!activeSources.some((source) => source.selected)) {
-        const warning = '동기화할 기기 캘린더 또는 미리 알림 목록을 선택해주세요.'
-        setMessage(warning)
-        notify({ message: warning, tone: 'warning' })
+        notify({ message: '동기화할 기기 목록을 선택해주세요.', tone: 'warning' })
         return
       }
-      const result = await syncDeviceCalendar(
-        supabase,
-        profile.id,
-        activeSources,
-      )
-      setMessage(formatSyncResult(providerLabel, result))
+      const result = await syncDeviceCalendar(supabase, profile.id, activeSources)
+      setMessage(formatSyncResult('기기', result))
       onExternalDataChanged()
       await reloadIntegrationState()
-      notify({ message: `${providerLabel} 동기화를 완료했습니다.`, tone: 'success' })
+      notify({ message: '기기 일정 동기화를 완료했습니다.', tone: 'success' })
     } catch (error) {
-      console.error(error)
-      const failure = requestErrorMessage(error, `${providerLabel} 동기화에 실패했습니다.`)
-      setMessage(failure)
-      notify({
-        message: failure,
-        tone: 'error',
-        action: { label: '재시도', onClick: () => { void syncDevice() } },
-      })
+      notify({ message: requestErrorMessage(error, '기기 일정 동기화에 실패했습니다.'), tone: 'error' })
     } finally {
       syncingRef.current = false
       setSyncing(false)
       setSyncingProvider(null)
     }
-  }
-
-  const legacySyncMonth = async () => {
-    // Kept as an internal alias while call sites transition to the unified
-    // calendar + task sync action.
-    await syncGoogle()
   }
 
   const downloadIcs = () => {
@@ -484,23 +449,18 @@ export function useGoogleIntegration({
     setMessage(null)
     try {
       const emails = await listRecentEmailTexts(providerToken)
-      if (emails.length === 0) {
+      if (!emails.length) {
         setMessage('최근 2주 메일에서 일정 후보를 찾지 못했습니다')
         return
       }
       const candidates = await requestEventExtraction(supabase, emails, profile.specialty)
       setExtracted(candidates)
       refreshAudits()
-      if (candidates.length === 0) setMessage('메일에서 일정을 찾지 못했습니다')
+      if (!candidates.length) setMessage('메일에서 일정을 찾지 못했습니다')
     } catch (error) {
-      console.error(error)
-      const failure = requestErrorMessage(error, error instanceof Error ? error.message : '메일 스캔에 실패했습니다')
+      const failure = requestErrorMessage(error, '메일 스캔에 실패했습니다')
       setMessage(failure)
-      notify({
-        message: failure,
-        tone: 'error',
-        action: { label: '재시도', onClick: () => { void scanGmail() } },
-      })
+      notify({ message: failure, tone: 'error', action: { label: '재시도', onClick: () => { void scanGmail() } } })
     } finally {
       scanningRef.current = false
       setScanning(false)
@@ -520,8 +480,6 @@ export function useGoogleIntegration({
       if (!added) return
       setExtracted((current) => current.filter((event) => event !== candidate))
       setMessage(`'${candidate.title}' 일정을 추가했습니다`)
-    } catch (error) {
-      console.error(error)
     } finally {
       addingExtractedRef.current = false
       setAddingExtracted(false)
@@ -533,15 +491,23 @@ export function useGoogleIntegration({
     : null
 
   return {
-    googleConnected: Boolean(providerToken),
-    microsoftIntegrationAvailable:
-      import.meta.env.VITE_MICROSOFT_INTEGRATION_ENABLED === 'true',
+    capabilities,
+    connections,
+    allSources: sources,
+    googleConnected: Boolean(googleConnection),
+    googleAccountLabel: googleConnection?.account_email ?? googleConnection?.account_label ?? null,
+    gmailConnected: Boolean(providerToken),
     microsoftConnected: Boolean(microsoftConnection),
-    microsoftAccountLabel: microsoftConnection?.account_email
-      ?? microsoftConnection?.account_label
-      ?? null,
-    googleSources,
-    microsoftSources,
+    microsoftAccountLabel: microsoftConnection?.account_email ?? microsoftConnection?.account_label ?? null,
+    todoistConnected: Boolean(todoistConnection),
+    todoistAccountLabel: todoistConnection?.account_email ?? todoistConnection?.account_label ?? null,
+    icsConnected: Boolean(icsConnection),
+    caldavConnected: Boolean(caldavConnection),
+    googleSources: sourcesFor('google'),
+    microsoftSources: sourcesFor('microsoft'),
+    todoistSources: sourcesFor('todoist'),
+    icsSources: sourcesFor('ics'),
+    caldavSources: sourcesFor('caldav'),
     deviceSources,
     nativeDeviceAvailable,
     nativeDeviceProvider,
@@ -557,13 +523,24 @@ export function useGoogleIntegration({
     audits,
     deletingAudits,
     feedUrl,
-    syncMonth: legacySyncMonth,
-    syncGoogle,
-    refreshGoogleCatalog,
+    connectGoogle: () => connectOAuth('google'),
+    connectMicrosoft: () => connectOAuth('microsoft'),
+    connectTodoist: () => connectOAuth('todoist'),
+    syncGoogle: () => syncProvider('google'),
+    refreshGoogleCatalog: () => syncProvider('google'),
+    syncMicrosoft: () => syncProvider('microsoft'),
+    syncTodoist: () => syncProvider('todoist'),
+    syncIcsFeed: () => syncProvider('ics'),
+    syncCalDav: () => syncProvider('caldav'),
+    disconnectGoogle: () => disconnectProvider('google'),
+    disconnectMicrosoft: () => disconnectProvider('microsoft'),
+    disconnectTodoist: () => disconnectProvider('todoist'),
+    disconnectIcs: () => disconnectProvider('ics'),
+    disconnectCalDav: () => disconnectProvider('caldav'),
+    configureDirect,
+    importIcs,
     toggleSource,
-    connectMicrosoft,
-    syncMicrosoft,
-    disconnectMicrosoft,
+    changeSourceMode,
     connectDevice,
     syncDevice,
     reconnectGoogle,

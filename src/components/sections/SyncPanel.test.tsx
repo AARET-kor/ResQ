@@ -6,6 +6,7 @@ import type { ExtractedEvent } from '../../lib/gmail'
 
 const base = {
   googleConnected: true,
+  gmailConnected: true,
   onSyncMonth: vi.fn(),
   syncMessage: null,
   onDownloadIcs: vi.fn(),
@@ -32,7 +33,7 @@ describe('SyncPanel', () => {
   })
   it('asks to reconnect google when not connected', () => {
     render(<SyncPanel {...base} googleConnected={false} />)
-    expect(screen.getByText(/Google Calendar·Tasks 권한이 필요/)).toBeInTheDocument()
+    expect(screen.getByText(/서버가 토큰을 안전하게 보관/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /일정·할 일 양방향 동기화/ })).not.toBeInTheDocument()
   })
   it('keeps Microsoft connection disabled until server credentials are configured', () => {
@@ -45,7 +46,13 @@ describe('SyncPanel', () => {
     render(
       <SyncPanel
         {...base}
-        microsoftIntegrationAvailable
+        capabilities={{
+          google: false,
+          microsoft: true,
+          todoist: false,
+          ics: true,
+          caldav: false,
+        }}
         onConnectMicrosoft={onConnectMicrosoft}
       />,
     )

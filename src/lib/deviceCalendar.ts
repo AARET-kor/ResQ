@@ -134,6 +134,15 @@ async function pushDeviceEvents(
   provider: IntegrationProvider,
   destination: IntegrationSource | undefined,
 ): Promise<{ pushed: number; deleted: number }> {
+  const sources = await client
+    .from('integration_sources')
+    .select('external_id,sync_mode,can_write')
+    .eq('user_id', userId)
+    .eq('provider', provider)
+  if (sources.error) throw sources.error
+  const sourceModes = new Map(
+    (sources.data ?? []).map((source) => [source.external_id, source]),
+  )
   const { data, error } = await client
     .from('events')
     .select('*')
@@ -147,6 +156,8 @@ async function pushDeviceEvents(
     if (!event.external_id && !destination?.can_write) continue
     const sourceId = event.external_source_id ?? destination?.external_id
     if (!sourceId) continue
+    const source = sourceModes.get(sourceId)
+    if (source && (!source.can_write || source.sync_mode !== 'two_way')) continue
     try {
       if (event.deleted_at && event.external_id) {
         await DeviceCalendar.deleteEvent({ id: event.external_id })
@@ -190,6 +201,16 @@ async function pushDeviceReminders(
   destination: IntegrationSource | undefined,
 ): Promise<{ pushed: number; deleted: number }> {
   if (!destination) return { pushed: 0, deleted: 0 }
+  const { data: sourceRows, error: sourceError } = await client
+    .from('integration_sources')
+    .select('external_id,sync_mode,can_write')
+    .eq('user_id', userId)
+    .eq('provider', 'apple')
+    .eq('resource_type', 'task_list')
+  if (sourceError) throw sourceError
+  const sourceModes = new Map(
+    (sourceRows ?? []).map((source) => [source.external_id, source]),
+  )
   const { data, error } = await client
     .from('todos')
     .select('*')
@@ -201,6 +222,8 @@ async function pushDeviceReminders(
   let deleted = 0
   for (const todo of (data as Todo[] | null) ?? []) {
     const sourceId = todo.external_source_id ?? destination.external_id
+    const source = sourceModes.get(sourceId) ?? destination
+    if (source.sync_mode !== 'two_way' || !source.can_write) continue
     try {
       if (todo.deleted_at && todo.external_id) {
         await DeviceCalendar.deleteReminder({ id: todo.external_id })
@@ -251,8 +274,12 @@ export async function syncDeviceCalendar(
   const selected = sources.filter((source) => source.provider === provider && source.selected)
   const calendars = selected.filter((source) => source.resource_type === 'calendar')
   const taskLists = selected.filter((source) => source.resource_type === 'task_list')
-  const destinationCalendar = calendars.find((source) => source.can_write)
-  const destinationTaskList = taskLists.find((source) => source.can_write)
+  const destinationCalendar = calendars.find(
+    (source) => source.can_write && source.sync_mode === 'two_way',
+  )
+  const destinationTaskList = taskLists.find(
+    (source) => source.can_write && source.sync_mode === 'two_way',
+  )
 
   const eventPush = await pushDeviceEvents(
     client,

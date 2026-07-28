@@ -93,6 +93,7 @@ export function ScheduleSection({
   loading = false,
   adding = false,
   deletingIds = new Set<string>(),
+  readOnlySourceKeys = new Set<string>(),
 }: {
   events: EventItem[]
   year: number
@@ -103,6 +104,7 @@ export function ScheduleSection({
   loading?: boolean
   adding?: boolean
   deletingIds?: Set<string>
+  readOnlySourceKeys?: Set<string>
 }) {
   const [title, setTitle] = useState('')
   const [date, setDate] = useState('')
@@ -221,8 +223,16 @@ export function ScheduleSection({
               <span className="font-mono text-[10px] uppercase" style={{ color: KIND_DOT[e.kind] }}>
                 {EVENT_KINDS[e.kind]}
               </span>
-              <button aria-label="일정 삭제" onClick={() => onDelete(e.id)}
-                disabled={deletingIds.has(e.id)}
+              <button
+                aria-label="일정 삭제"
+                title={e.source_provider && readOnlySourceKeys.has(`${e.source_provider}:${e.external_source_id}`)
+                  ? '읽기 전용 연결에서는 원본 앱에서 수정하세요.'
+                  : undefined}
+                onClick={() => onDelete(e.id)}
+                disabled={deletingIds.has(e.id) || Boolean(
+                  e.source_provider
+                  && readOnlySourceKeys.has(`${e.source_provider}:${e.external_source_id}`),
+                )}
                 className="font-mono text-[10px] uppercase text-cream/40 transition hover:text-red-400 disabled:cursor-wait disabled:opacity-30">
                 삭제
               </button>

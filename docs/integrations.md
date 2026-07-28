@@ -1,35 +1,73 @@
 # ResQ 일정·할 일 연동
 
-## 현재 웹 연동
+## 지원 범위
 
-- Google Calendar: 선택한 캘린더의 최근 90일~향후 1년 일정 가져오기,
-  ResQ 변경사항 보내기, 수정·삭제 반영
-- Google Tasks: 선택한 목록의 할 일 가져오기, 완료 상태·삭제·새 할 일 반영
-- Outlook Calendar: Microsoft Graph를 통한 선택 캘린더 양방향 동기화
-- Microsoft To Do: Microsoft Graph를 통한 목록·완료 상태 양방향 동기화
-- ICS: Apple·Galaxy 캘린더에서 구독할 수 있는 읽기용 피드
+- Google Calendar·Tasks: 서버 OAuth, 자동 토큰 갱신, 선택 목록별 증분
+  양방향 동기화
+- Outlook Calendar·Microsoft To Do: 서버 OAuth와 증분 양방향 동기화
+- Todoist: 프로젝트 선택, Sync API 기반 증분 양방향 동기화
+- ICS: 파일 가져오기, 읽기 전용 HTTPS 피드 구독, ResQ 읽기용 피드
+- CalDAV: 캘린더·VTODO 목록 탐색과 목록별 읽기 전용/양방향 모드
+- iOS 앱: EventKit Calendar·Reminders
+- Android 앱: Calendar Provider. 삼성 Reminder는 Microsoft To Do 경로 사용
 
 외부 일정의 메모·본문은 기본적으로 복사하지 않는다. 제목, 시작/종료,
 위치와 할 일의 제목·마감일·완료 여부만 동기화한다.
 
-## Google 설정
+통합 타임라인은 ResQ와 모든 외부 출처를 한 화면에 합치고 출처별 색상,
+중복 표시, 원본 앱 링크를 제공한다. 중복으로 판정된 항목은 삭제하지 않고
+대표 항목에 출처를 함께 표시한다.
 
-Supabase Auth의 Google provider가 활성화되어 있어야 한다. OAuth consent
-screen과 Google Cloud 프로젝트에서 Calendar API 및 Tasks API를 활성화하고
-다음 scope를 허용한다.
+## 공통 서버 설정
+
+Access/refresh token 및 CalDAV 앱 비밀번호는
+`integration_credentials`에 암호화해 저장한다. 이 테이블은
+`anon`, `authenticated` 역할에서 차단되며 Edge Function service role만
+접근한다.
+
+```sh
+supabase secrets set \
+  INTEGRATION_TOKEN_ENCRYPTION_KEY="$(openssl rand -base64 48)"
+```
+
+OAuth callback:
+
+```text
+https://<SUPABASE_PROJECT_REF>.supabase.co/functions/v1/integration-oauth/callback
+```
+
+`integration-oauth`는 callback을 받아야 하므로 `--no-verify-jwt`로
+배포한다. 시작·설정·해제 요청은 함수 안에서 Supabase bearer token을
+검증한다. Callback은 10분 만료·1회용 state를 사용하며 Google과
+Microsoft에는 PKCE도 적용한다. 모바일 완료 주소는
+`com.resq.medical://integration/callback`이다.
+
+## Google Calendar·Tasks 설정
+
+Gmail 로그인과 Calendar·Tasks 연결은 분리한다. Google Cloud에서 Web
+OAuth client를 만들고 위 Edge Function callback을 등록한 뒤 Calendar API와
+Tasks API를 활성화한다.
 
 - `calendar.events`
 - `calendar.calendarlist.readonly`
 - `tasks`
-- `gmail.readonly`
 
-기존 사용자는 변경된 scope를 받기 위해 앱의 `권한 다시 연결`을 한 번
-실행해야 한다.
+```sh
+supabase secrets set \
+  GOOGLE_OAUTH_CLIENT_ID=<client-id> \
+  GOOGLE_OAUTH_CLIENT_SECRET=<client-secret>
+```
 
-모바일 OAuth callback `com.resq.medical://auth/callback`도 Supabase Auth의
-Redirect URLs allow list에 등록한다.
+`access_type=offline`과 refresh token을 사용하고, Calendar는 각 source의
+`syncToken`, Tasks는 변경 시각 cursor로 증분 동기화한다. 만료되거나
+무효화된 Calendar sync token은 제한된 전체 동기화로 복구한다.
 
-## Microsoft 설정
+Gmail AI 일정 추출은 기존 Supabase Auth Google 연결의 `gmail.readonly`를
+별도로 사용한다. 모바일 로그인 callback
+`com.resq.medical://auth/callback`은 Supabase Auth Redirect URLs allow
+list에 등록한다.
+
+## Microsoft Outlook·To Do 설정
 
 Microsoft Entra에서 Web application을 만들고 다음 redirect URI를 등록한다.
 
@@ -52,17 +90,33 @@ supabase secrets set \
   MICROSOFT_CLIENT_SECRET=<client-secret>
 ```
 
-두 secret과 redirect URI 설정을 마친 뒤 웹 빌드 환경에
-`VITE_MICROSOFT_INTEGRATION_ENABLED=true`를 지정한다. 설정 전에는
-사용자에게 실패하는 연결 버튼 대신 `관리자 설정 대기` 상태가 표시된다.
+Calendar는 Graph delta link, To Do는 delta 지원 여부에 따라 delta 또는
+목록 갱신을 사용한다. 삼성 Reminder에서 Microsoft To Do 동기화를 켜면
+동일한 To Do 목록이 ResQ에 들어온다.
 
-`integration-oauth`는 provider callback을 받아야 하므로 `--no-verify-jwt`로
-배포한다. 시작 요청은 함수 내부에서 Supabase bearer token을 검증하며,
-callback은 10분 만료·1회용 OAuth state와 PKCE를 검증한다. Access/refresh
-token은 RLS와 권한으로 일반 사용자에게 완전히 차단된
-`integration_credentials`에 저장하고 Edge Function service role만 사용한다.
-모바일에서는 OAuth 완료 후 `com.resq.medical://integration/callback`으로
-돌아와 동일한 연결 결과를 앱에 전달한다.
+## Todoist 설정
+
+Todoist App Management Console에 OAuth 앱과 공통 callback을 등록한다.
+
+```sh
+supabase secrets set \
+  TODOIST_CLIENT_ID=<client-id> \
+  TODOIST_CLIENT_SECRET=<client-secret>
+```
+
+권한은 `data:read_write`이며 회전되는 refresh token을 매 갱신마다 교체
+저장한다. Todoist 명칭은 호환 기능 설명에만 사용하며 공식 제휴 서비스가
+아니다.
+
+## ICS·CalDAV
+
+- `.ics` 파일은 브라우저에서 5MB까지 가져오며 외부 원본과 후속
+  동기화하지 않는다.
+- HTTPS ICS 구독은 서버에서 최대 5MB, 20초, 제한된 redirect 규칙으로
+  읽고 원본에 쓰지 않는다.
+- CalDAV는 공개 HTTPS endpoint와 앱 비밀번호만 허용한다. 목록별로
+  읽기 전용 또는 양방향을 선택할 수 있다.
+- 주소와 CalDAV 비밀번호는 브라우저 저장소에 남기지 않는다.
 
 ## Apple Calendar·Reminders와 기기 캘린더
 
@@ -90,3 +144,17 @@ Calendar·Reminders 시스템 권한은 로그인 후 별도로 요청된다.
   제거한다.
 - 반복 일정은 동기화 기간 안의 개별 인스턴스로 펼쳐 가져오며, 원본
   URL·etag/version과 UTC 기준 시각을 함께 추적한다.
+- 같은 연결의 동기화는 DB 잠금으로 중복 실행을 차단한다.
+
+## 배포 순서
+
+```sh
+supabase db push
+supabase functions deploy integration-oauth --no-verify-jwt --use-api
+supabase functions deploy integration-sync --use-api
+npm run build
+npx cap sync
+```
+
+OAuth provider secret이 없는 기능은 런타임 capability 응답에서 꺼지고
+UI에는 `관리자 설정 대기`로 표시된다. 빌드 환경 feature flag는 없다.

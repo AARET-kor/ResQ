@@ -41,6 +41,7 @@ export function TodoSection({
   adding = false,
   addingExtracted = false,
   pendingIds = new Set<string>(),
+  readOnlySourceKeys = new Set<string>(),
 }: {
   todos: Todo[]
   onAdd: (title: string, opts: { priority: TodoPriority; dueDate: string | null; dueTime: string | null }) => boolean | void | Promise<boolean | void>
@@ -55,6 +56,7 @@ export function TodoSection({
   adding?: boolean
   addingExtracted?: boolean
   pendingIds?: Set<string>
+  readOnlySourceKeys?: Set<string>
 }) {
   const [title, setTitle] = useState('')
   const [priority, setPriority] = useState<TodoPriority>('normal')
@@ -246,7 +248,10 @@ export function TodoSection({
                 aria-label={t.title}
                 checked={t.done}
                 onChange={() => onToggle(t)}
-                disabled={pendingIds.has(t.id)}
+                disabled={pendingIds.has(t.id) || Boolean(
+                  t.source_provider
+                  && readOnlySourceKeys.has(`${t.source_provider}:${t.external_source_id}`),
+                )}
                 className="h-4 w-4 accent-[#6FFF00]"
               />
               <span className={`flex-1 font-mono text-sm ${t.done ? 'text-cream/40 line-through' : 'text-cream'}`}>
@@ -265,7 +270,13 @@ export function TodoSection({
               </span>
               <button
                 onClick={() => onDelete(t.id)}
-                disabled={pendingIds.has(t.id)}
+                title={t.source_provider && readOnlySourceKeys.has(`${t.source_provider}:${t.external_source_id}`)
+                  ? '읽기 전용 연결에서는 원본 앱에서 수정하세요.'
+                  : undefined}
+                disabled={pendingIds.has(t.id) || Boolean(
+                  t.source_provider
+                  && readOnlySourceKeys.has(`${t.source_provider}:${t.external_source_id}`),
+                )}
                 className="font-mono text-[10px] uppercase text-cream/40 transition hover:text-red-400 disabled:cursor-wait disabled:opacity-30"
               >
                 삭제

@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 export type IntegrationProvider =
   | 'google'
   | 'microsoft'
+  | 'todoist'
   | 'apple'
   | 'android'
   | 'ics'
@@ -10,10 +11,12 @@ export type IntegrationProvider =
 
 export type IntegrationResourceType = 'calendar' | 'task_list'
 export type SyncStatus = 'pending' | 'synced' | 'error'
+export type IntegrationSyncMode = 'read_only' | 'two_way'
 
 export const PROVIDER_LABEL: Record<IntegrationProvider, string> = {
   google: 'Google',
   microsoft: 'Microsoft',
+  todoist: 'Todoist',
   apple: 'Apple',
   android: 'Android',
   ics: 'ICS',
@@ -29,6 +32,9 @@ export interface IntegrationConnection {
   account_label: string | null
   status: 'active' | 'expired' | 'error' | 'disabled'
   scopes: string[]
+  sync_mode: IntegrationSyncMode
+  auto_sync_enabled: boolean
+  provider_config: Record<string, unknown>
   last_synced_at: string | null
   last_error: string | null
 }
@@ -45,6 +51,8 @@ export interface IntegrationSource {
   selected: boolean
   is_default: boolean
   can_write: boolean
+  sync_mode: IntegrationSyncMode
+  metadata: Record<string, unknown>
   last_synced_at: string | null
   last_error: string | null
 }
@@ -112,6 +120,7 @@ export async function mergeDiscoveredSources(
       selected: previous?.selected ?? shouldSelectDefault,
       is_default: Boolean(source.is_default),
       can_write: source.can_write ?? true,
+      sync_mode: previous?.sync_mode ?? (source.can_write === false ? 'read_only' : 'two_way'),
       last_error: null,
     }
   })
@@ -139,6 +148,18 @@ export async function setIntegrationSourceSelected(
   if (error) throw error
 }
 
+export async function setIntegrationSourceMode(
+  client: SupabaseClient,
+  sourceId: string,
+  syncMode: IntegrationSyncMode,
+): Promise<void> {
+  const { error } = await client
+    .from('integration_sources')
+    .update({ sync_mode: syncMode, last_error: null })
+    .eq('id', sourceId)
+  if (error) throw error
+}
+
 export async function listIntegrationConnections(
   client: SupabaseClient,
   userId: string,
@@ -152,27 +173,63 @@ export async function listIntegrationConnections(
   return (data as IntegrationConnection[]) ?? []
 }
 
+export interface IntegrationCapabilities {
+  google: boolean
+  microsoft: boolean
+  todoist: boolean
+  ics: boolean
+  caldav: boolean
+}
+
+export async function getIntegrationCapabilities(
+  client: SupabaseClient,
+): Promise<IntegrationCapabilities> {
+  const { data, error } = await client.functions.invoke('integration-oauth', {
+    body: { action: 'capabilities' },
+  })
+  if (error) throw error
+  return data as IntegrationCapabilities
+}
+
 export async function disconnectIntegration(
   client: SupabaseClient,
   connectionId: string,
 ): Promise<void> {
-  const { error } = await client
-    .from('integration_connections')
-    .delete()
-    .eq('id', connectionId)
+  const { data, error } = await client.functions.invoke('integration-oauth', {
+    body: { action: 'disconnect', connectionId },
+  })
   if (error) throw error
+  if (data?.error) throw new Error(data.error)
 }
 
-export async function startMicrosoftConnection(
+export async function startOAuthConnection(
   client: SupabaseClient,
+  provider: 'google' | 'microsoft' | 'todoist',
   returnTo: string,
 ): Promise<string> {
   const { data, error } = await client.functions.invoke('integration-oauth', {
-    body: { action: 'start', provider: 'microsoft', returnTo },
+    body: { action: 'start', provider, returnTo },
   })
   if (error) throw error
-  if (!data?.authorizationUrl) throw new Error(data?.error ?? 'Microsoft 연결 URL을 만들지 못했습니다.')
+  if (!data?.authorizationUrl) throw new Error(data?.error ?? '연결 URL을 만들지 못했습니다.')
   return data.authorizationUrl as string
+}
+
+export async function configureDirectIntegration(
+  client: SupabaseClient,
+  values: {
+    provider: 'ics' | 'caldav'
+    endpointUrl: string
+    label?: string
+    username?: string
+    password?: string
+  },
+): Promise<void> {
+  const { data, error } = await client.functions.invoke('integration-oauth', {
+    body: { action: 'configure', ...values },
+  })
+  if (error) throw error
+  if (data?.error) throw new Error(data.error)
 }
 
 export interface IntegrationSyncResult {
@@ -185,11 +242,12 @@ export interface IntegrationSyncResult {
   sources: number
 }
 
-export async function syncMicrosoftIntegration(
+export async function syncExternalIntegration(
   client: SupabaseClient,
+  provider: 'google' | 'microsoft' | 'todoist' | 'ics' | 'caldav',
 ): Promise<IntegrationSyncResult> {
   const { data, error } = await client.functions.invoke('integration-sync', {
-    body: { provider: 'microsoft' },
+    body: { provider },
   })
   if (error) throw error
   if (data?.error) throw new Error(data.error)

@@ -3,6 +3,7 @@ import { SPECIALTIES, SPECIALTY_ABBR } from '../mascot/roster'
 import { TodoSection } from '../components/sections/TodoSection'
 import { ScheduleSection } from '../components/sections/ScheduleSection'
 import { SyncPanel } from '../components/sections/SyncPanel'
+import { UnifiedTimeline } from '../components/sections/UnifiedTimeline'
 import { TeamSection } from '../components/sections/TeamSection'
 import { PapersSection } from '../components/sections/PapersSection'
 import { useTodos } from './hooks/useTodos'
@@ -40,6 +41,11 @@ export function HomeSections({ profile, onProfileChange }: HomeSectionsProps) {
   const team = useTeam(profile)
   const paperFeed = usePaperFeed({ profile, onProfileChange })
   const paperAnalysis = usePaperAnalysis({ profile, onProfileChange })
+  const readOnlySourceKeys = new Set(
+    google.allSources
+      .filter((source) => source.sync_mode === 'read_only')
+      .map((source) => `${source.provider}:${source.external_id}`),
+  )
 
   return (
     <div className="mx-auto flex max-w-[1831px] flex-col gap-16 px-6 py-16 sm:px-10">
@@ -47,6 +53,11 @@ export function HomeSections({ profile, onProfileChange }: HomeSectionsProps) {
         <h2 className="mb-6 font-grotesk text-3xl uppercase sm:text-5xl">
           오늘의 <span className="font-condiment normal-case text-neon">plan</span>
         </h2>
+        <UnifiedTimeline
+          events={schedule.events}
+          todos={todos.todos}
+          sources={google.allSources}
+        />
         <div className="grid gap-6 lg:grid-cols-[1fr_1.6fr]">
           <TodoSection
             todos={todos.todos}
@@ -62,6 +73,7 @@ export function HomeSections({ profile, onProfileChange }: HomeSectionsProps) {
             adding={todos.adding}
             addingExtracted={todos.addingExtracted}
             pendingIds={todos.pendingIds}
+            readOnlySourceKeys={readOnlySourceKeys}
           />
           <ScheduleSection
             events={schedule.events}
@@ -73,27 +85,49 @@ export function HomeSections({ profile, onProfileChange }: HomeSectionsProps) {
             loading={schedule.loading}
             adding={schedule.adding}
             deletingIds={schedule.deletingIds}
+            readOnlySourceKeys={readOnlySourceKeys}
           />
         </div>
         <div className="mt-6">
           <SyncPanel
+            capabilities={google.capabilities}
             googleConnected={google.googleConnected}
-            microsoftIntegrationAvailable={google.microsoftIntegrationAvailable}
+            googleAccountLabel={google.googleAccountLabel}
+            gmailConnected={google.gmailConnected}
             microsoftConnected={google.microsoftConnected}
             microsoftAccountLabel={google.microsoftAccountLabel}
+            todoistConnected={google.todoistConnected}
+            todoistAccountLabel={google.todoistAccountLabel}
+            icsConnected={google.icsConnected}
+            caldavConnected={google.caldavConnected}
             googleSources={google.googleSources}
             microsoftSources={google.microsoftSources}
+            todoistSources={google.todoistSources}
+            icsSources={google.icsSources}
+            caldavSources={google.caldavSources}
             deviceSources={google.deviceSources}
             nativeDeviceAvailable={google.nativeDeviceAvailable}
             nativeDeviceProvider={google.nativeDeviceProvider}
             catalogLoading={google.catalogLoading}
+            onConnectGoogle={google.connectGoogle}
             onRefreshGoogleSources={google.refreshGoogleCatalog}
             onToggleSource={google.toggleSource}
+            onChangeSourceMode={google.changeSourceMode}
+            onDisconnectGoogle={google.disconnectGoogle}
             onReconnectGoogle={google.reconnectGoogle}
             onSyncMonth={google.syncGoogle}
             onConnectMicrosoft={google.connectMicrosoft}
             onSyncMicrosoft={google.syncMicrosoft}
             onDisconnectMicrosoft={google.disconnectMicrosoft}
+            onConnectTodoist={google.connectTodoist}
+            onSyncTodoist={google.syncTodoist}
+            onDisconnectTodoist={google.disconnectTodoist}
+            onSyncIcsFeed={google.syncIcsFeed}
+            onSyncCalDav={google.syncCalDav}
+            onDisconnectIcs={google.disconnectIcs}
+            onDisconnectCalDav={google.disconnectCalDav}
+            onConfigureDirect={google.configureDirect}
+            onImportIcs={google.importIcs}
             onConnectDevice={google.connectDevice}
             onSyncDevice={google.syncDevice}
             syncing={google.syncing}
