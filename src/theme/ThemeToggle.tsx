@@ -19,7 +19,7 @@ export function ThemeToggle({ className = '', showLabel = false }: ThemeTogglePr
       aria-pressed={isDark}
       title={label}
       onClick={toggleTheme}
-      className={`inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-full border border-line/45 bg-surface/70 px-3 font-sans text-xs font-medium text-ink shadow-sm transition hover:border-accent/70 hover:text-accent ${className}`}
+      className={`resq-theme-toggle gap-2 px-3 ${className}`}
     >
       <Icon aria-hidden size={18} strokeWidth={1.8} />
       {showLabel && <span>{isDark ? '라이트' : '다크'}</span>}

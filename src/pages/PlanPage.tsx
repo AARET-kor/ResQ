@@ -17,6 +17,8 @@ export function PlanPage({
   const todos = useTodos({ profile, onProfileChange })
   const schedule = useSchedule(profile.id)
   const { sources } = useIntegrationSources(profile.id)
+  const openTodoCount = todos.todos.filter((todo) => !todo.done).length
+  const connectedSourceCount = sources.filter((source) => source.selected).length
   const readOnlySourceKeys = new Set(
     sources
       .filter((source) => source.sync_mode === 'read_only')
@@ -24,18 +26,34 @@ export function PlanPage({
   )
 
   return (
-    <div className="mx-auto max-w-[1500px] px-5 py-10 sm:px-8 sm:py-14">
+    <div className="plan-page">
       <PageIntro
-        eyebrow="Personal Command Center"
+        eyebrow="Personal workspace"
         title="일정 · 할 일"
         description="오늘 해야 할 일과 이번 달 일정을 한곳에서 관리합니다. 외부 앱에서 가져온 항목은 출처와 동기화 모드에 맞게 안전하게 처리됩니다."
+        action={(
+          <div className="plan-summary" aria-label="일정 및 할 일 요약">
+            <div className="plan-summary__item">
+              <strong className="plan-summary__value">{openTodoCount}</strong>
+              <span className="plan-summary__label">남은 할 일</span>
+            </div>
+            <div className="plan-summary__item">
+              <strong className="plan-summary__value">{schedule.events.length}</strong>
+              <span className="plan-summary__label">이번 달 일정</span>
+            </div>
+            <div className="plan-summary__item">
+              <strong className="plan-summary__value">{connectedSourceCount}</strong>
+              <span className="plan-summary__label">연결된 소스</span>
+            </div>
+          </div>
+        )}
       />
       <UnifiedTimeline
         events={schedule.events}
         todos={todos.todos}
         sources={sources}
       />
-      <div className="grid gap-6 lg:grid-cols-[1fr_1.6fr]">
+      <div className="plan-workspace-grid">
         <TodoSection
           todos={todos.todos}
           onAdd={todos.add}

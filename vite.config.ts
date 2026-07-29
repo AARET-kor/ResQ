@@ -20,8 +20,25 @@ function sitesStaticOutput(): Plugin {
   }
 }
 
+function restartWhenThemeConfigChanges(): Plugin {
+  const themeConfig = resolve('tailwind.config.js')
+
+  return {
+    name: 'restart-when-theme-config-changes',
+    apply: 'serve',
+    configureServer(server) {
+      server.watcher.add(themeConfig)
+      server.watcher.on('change', async (changedPath) => {
+        if (resolve(changedPath) === themeConfig) {
+          await server.restart()
+        }
+      })
+    },
+  }
+}
+
 export default defineConfig({
-  plugins: [react(), sitesStaticOutput()],
+  plugins: [react(), restartWhenThemeConfigChanges(), sitesStaticOutput()],
   build: {
     outDir: 'dist/client',
   },

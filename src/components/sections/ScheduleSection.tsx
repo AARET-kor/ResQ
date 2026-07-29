@@ -1,20 +1,20 @@
-import { useState, type FormEvent } from 'react'
-import { ArrowLeft, ArrowRight } from 'lucide-react'
+import { useState, type CSSProperties, type FormEvent } from 'react'
+import { ArrowLeft, ArrowRight, CalendarDays, Inbox, Plus } from 'lucide-react'
 import { LiquidGlass } from '../LiquidGlass'
 import { monthGrid } from '../../lib/calendar'
 import { EVENT_KINDS, type EventItem, type EventKind } from '../../lib/events'
 import { PROVIDER_LABEL } from '../../lib/integrations'
 
 const KIND_DOT: Record<EventKind, string> = {
-  conference: '#6FFF00',
-  surgery: '#ff6b6b',
-  social: '#ffd166',
-  professor: '#4ecdc4',
-  other: '#c792ea',
+  conference: '#238452',
+  surgery: '#c54545',
+  social: '#a56a00',
+  professor: '#147f7c',
+  other: '#7155a7',
 }
 
 const MONTHS = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월']
-const MAX_DOTS = 3
+const MAX_CALENDAR_EVENTS = 2
 
 function todayISO(): string {
   const d = new Date()
@@ -38,28 +38,28 @@ function MonthPicker({
   return (
     <div
       aria-label="월 선택 패널"
-      className="absolute right-0 top-full z-10 mt-2 flex w-[260px] flex-col gap-3 rounded-2xl border border-line bg-surface p-4 shadow-xl"
+      className="month-picker"
     >
-      <div className="flex items-center justify-between">
+      <div className="month-picker__header">
         <button
           aria-label="이전 해"
           type="button"
           onClick={() => setPickerYear((y) => y - 1)}
-          className="flex h-7 w-7 items-center justify-center rounded-full border border-cream/30 transition hover:bg-cream/10"
+          className="resq-icon-control"
         >
-          <ArrowLeft size={12} />
+          <ArrowLeft aria-hidden size={15} />
         </button>
-        <span className="font-grotesk text-sm uppercase">{pickerYear}년</span>
+        <span className="month-picker__year">{pickerYear}년</span>
         <button
           aria-label="다음 해"
           type="button"
           onClick={() => setPickerYear((y) => y + 1)}
-          className="flex h-7 w-7 items-center justify-center rounded-full border border-cream/30 transition hover:bg-cream/10"
+          className="resq-icon-control"
         >
-          <ArrowRight size={12} />
+          <ArrowRight aria-hidden size={15} />
         </button>
       </div>
-      <div className="grid grid-cols-4 gap-1.5">
+      <div className="month-picker__grid">
         {MONTHS.map((label, m0) => {
           const isCurrent = pickerYear === year && m0 === month0
           return (
@@ -70,9 +70,7 @@ function MonthPicker({
                 onSelect(pickerYear, m0)
                 onClose()
               }}
-              className={`rounded-md px-2 py-1.5 font-sans text-sm uppercase transition ${
-                isCurrent ? 'bg-accent text-accentInk' : 'bg-cream/5 text-cream/70 hover:bg-cream/10'
-              }`}
+              className={`month-picker__month ${isCurrent ? 'month-picker__month--current' : ''}`}
             >
               {label}
             </button>
@@ -133,29 +131,32 @@ export function ScheduleSection({
   }
 
   return (
-    <LiquidGlass className="rounded-2xl">
-      <div className="flex flex-col gap-4 p-6 text-sm">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="h-[6px] w-[6px] bg-neon" />
-            <h3 className="font-grotesk text-xl uppercase">스케줄</h3>
+    <LiquidGlass className="plan-card">
+      <div className="plan-card__content">
+        <header className="plan-card__header schedule-card__header">
+          <div className="plan-card__heading">
+            <span className="plan-card__icon">
+              <CalendarDays aria-hidden size={21} />
+            </span>
+            <div>
+              <h2 className="plan-card__title">캘린더</h2>
+              <p className="plan-card__subtitle">한 달의 일정과 외부 캘린더 항목을 함께 확인하세요.</p>
+            </div>
           </div>
-          <div className="relative flex items-center gap-3">
-            <button aria-label="이전 달" onClick={prev}
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-cream/30 transition hover:bg-cream/10">
-              <ArrowLeft size={14} />
+          <div className="month-control">
+            <button type="button" aria-label="이전 달" onClick={prev} className="resq-icon-control">
+              <ArrowLeft aria-hidden size={17} />
             </button>
             <button
               type="button"
               aria-label="월 선택"
               onClick={() => setPickerOpen((v) => !v)}
-              className="rounded-md px-2 py-1 font-grotesk text-sm uppercase transition hover:bg-cream/10"
+              className="month-control__label"
             >
               {year}년 {month0 + 1}월
             </button>
-            <button aria-label="다음 달" onClick={next}
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-cream/30 transition hover:bg-cream/10">
-              <ArrowRight size={14} />
+            <button type="button" aria-label="다음 달" onClick={next} className="resq-icon-control">
+              <ArrowRight aria-hidden size={17} />
             </button>
             {pickerOpen && (
               <MonthPicker
@@ -166,35 +167,53 @@ export function ScheduleSection({
               />
             )}
           </div>
-        </div>
+        </header>
 
-        {/* Month grid */}
-        <div className="grid grid-cols-7 gap-1 font-sans text-sm uppercase text-cream/70">
+        <div className="calendar-weekdays" aria-hidden="true">
           {['일', '월', '화', '수', '목', '금', '토'].map((d) => (
             <div
               key={d}
-              className={`px-1 py-0.5 text-center ${d === '일' ? 'text-red-700 dark:text-red-300' : d === '토' ? 'text-sky-700 dark:text-sky-300' : ''}`}
+              className={`calendar-weekday ${
+                d === '일' ? 'calendar-weekday--sun' : d === '토' ? 'calendar-weekday--sat' : ''
+              }`}
             >
               {d}
             </div>
           ))}
         </div>
-        <div className="grid grid-cols-7 gap-1">
+        <div className="calendar-grid" aria-label={`${year}년 ${month0 + 1}월 달력`}>
           {cells.map((c) => {
             const dayEvents = byDate.get(c.date) ?? []
             const isToday = c.date === today
             return (
-              <div key={c.date}
-                className={`min-h-[64px] rounded-lg p-1 font-sans text-sm ${c.inMonth ? 'bg-cream/[0.07] text-cream' : 'bg-transparent text-muted'} ${isToday ? 'ring-2 ring-neon' : ''}`}>
-                <div>{Number(c.date.slice(8, 10))}</div>
-                <div className="mt-0.5 flex flex-wrap items-center gap-0.5">
-                  {dayEvents.slice(0, MAX_DOTS).map((e) => (
-                    <span key={e.id} title={e.title}
-                      className="h-2 w-2 rounded-full"
-                      style={{ background: KIND_DOT[e.kind] }} />
+              <div
+                key={c.date}
+                className={`calendar-cell ${c.inMonth ? '' : 'calendar-cell--outside'}`}
+              >
+                <span className={`calendar-day-number ${isToday ? 'calendar-day-number--today' : ''}`}>
+                  {Number(c.date.slice(8, 10))}
+                </span>
+                <div className="calendar-day-events">
+                  {dayEvents.slice(0, MAX_CALENDAR_EVENTS).map((event) => (
+                    <span
+                      key={event.id}
+                      title={event.title}
+                      className="calendar-event-chip"
+                      style={{ '--event-color': KIND_DOT[event.kind] } as CSSProperties}
+                    >
+                      {event.title}
+                    </span>
                   ))}
-                  {dayEvents.length > MAX_DOTS && (
-                    <span className="font-sans text-xs text-cream/70">+{dayEvents.length - MAX_DOTS}</span>
+                  {dayEvents.length > MAX_CALENDAR_EVENTS && (
+                    <span className="calendar-event-more">+{dayEvents.length - MAX_CALENDAR_EVENTS}개</span>
+                  )}
+                  {dayEvents.length > 0 && (
+                    <span
+                      className="calendar-mobile-count"
+                      aria-label={`${dayEvents.length}개 일정`}
+                    >
+                      {dayEvents.length}
+                    </span>
                   )}
                 </div>
               </div>
@@ -202,25 +221,33 @@ export function ScheduleSection({
           })}
         </div>
 
-        {/* Month event list */}
+        <div className="schedule-list-heading">
+          <span className="schedule-list-title">이번 달 일정</span>
+          <span className="plan-count">{events.length}개</span>
+        </div>
+
         {loading && (
           <div aria-label="일정 불러오는 중" className="flex animate-pulse flex-col gap-2">
-            {[0, 1].map((item) => <div key={item} className="h-9 rounded-md bg-cream/10" />)}
+            {[0, 1].map((item) => <div key={item} className="skeleton-line" />)}
           </div>
         )}
-        {!loading && <ul className="flex flex-col gap-2">
+        {!loading && <ul className="schedule-event-list">
           {events.map((e) => (
-            <li key={e.id} className="flex items-center gap-3 rounded-md bg-cream/[0.07] px-3 py-2">
-              <span className="font-sans text-sm uppercase text-cream/75">
+            <li
+              key={e.id}
+              className="schedule-event-row"
+              style={{ borderLeft: `3px solid ${KIND_DOT[e.kind]}` }}
+            >
+              <span className="schedule-event-row__time">
                 {e.starts_at.slice(5, 10)} {e.starts_at.slice(11, 16)}
               </span>
-              <span className="flex-1 font-sans text-sm">{e.title}</span>
+              <span className="schedule-event-row__title">{e.title}</span>
               {e.source_provider && (
-                <span className="rounded-full border border-cream/15 px-2 py-0.5 font-sans text-xs uppercase text-cream/65">
+                <span className="resq-meta-chip">
                   {PROVIDER_LABEL[e.source_provider]}
                 </span>
               )}
-              <span className="font-sans text-sm uppercase" style={{ color: KIND_DOT[e.kind] }}>
+              <span className="resq-meta-chip" style={{ borderColor: KIND_DOT[e.kind] }}>
                 {EVENT_KINDS[e.kind]}
               </span>
               <button
@@ -233,44 +260,53 @@ export function ScheduleSection({
                   e.source_provider
                   && readOnlySourceKeys.has(`${e.source_provider}:${e.external_source_id}`),
                 )}
-                className="font-sans text-sm uppercase text-cream/65 transition hover:text-red-700 dark:hover:text-red-400 disabled:cursor-wait disabled:opacity-30">
+                className="resq-text-action">
                 삭제
               </button>
             </li>
           ))}
           {events.length === 0 && (
-            <li className="font-sans text-xs uppercase text-cream/65">이 달의 일정이 없습니다</li>
+            <li className="resq-empty-state">
+              <span className="resq-empty-state__icon">
+                <Inbox aria-hidden size={22} />
+              </span>
+              <div>
+                <p className="resq-empty-state__title">이 달의 일정이 없습니다</p>
+                <p className="resq-empty-state__body">아래에서 일정을 추가하면 달력에 바로 표시됩니다.</p>
+              </div>
+            </li>
           )}
         </ul>}
 
-        {/* Add form */}
-        <form onSubmit={submit} className="flex flex-wrap items-end gap-2">
-          <label className="flex flex-1 min-w-[160px] flex-col gap-1 font-sans text-sm uppercase text-cream/75">
+        <form onSubmit={submit} className="schedule-composer">
+          <label className="resq-field-label">
             일정 제목
             <input aria-label="일정 제목" value={title} onChange={(e) => setTitle(e.target.value)}
-              className="rounded-md bg-cream/5 px-3 py-2 font-sans text-sm text-cream outline-none focus:ring-1 focus:ring-neon" />
+              placeholder="예: 학회 발표 준비"
+              className="resq-field" />
           </label>
-          <label className="flex flex-col gap-1 font-sans text-sm uppercase text-cream/75">
+          <label className="resq-field-label">
             날짜
             <input aria-label="날짜" type="date" value={date} onChange={(e) => setDate(e.target.value)}
-              className="rounded-md bg-cream/5 px-3 py-2 font-sans text-sm text-cream outline-none focus:ring-1 focus:ring-neon" />
+              className="resq-field" />
           </label>
-          <label className="flex flex-col gap-1 font-sans text-sm uppercase text-cream/75">
+          <label className="resq-field-label">
             시간
             <input aria-label="시간" type="time" value={time} onChange={(e) => setTime(e.target.value)}
-              className="rounded-md bg-cream/5 px-3 py-2 font-sans text-sm text-cream outline-none focus:ring-1 focus:ring-neon" />
+              className="resq-field" />
           </label>
-          <label className="flex flex-col gap-1 font-sans text-sm uppercase text-cream/75">
+          <label className="resq-field-label">
             종류
             <select aria-label="종류" value={kind} onChange={(e) => setKind(e.target.value as EventKind)}
-              className="rounded-md bg-cream/5 px-3 py-2 font-sans text-sm text-cream outline-none focus:ring-1 focus:ring-neon [&>option]:bg-bg">
+              className="resq-select">
               {Object.entries(EVENT_KINDS).map(([k, label]) => (
                 <option key={k} value={k}>{label}</option>
               ))}
             </select>
           </label>
           <button type="submit" disabled={adding}
-            className="rounded-md bg-accent px-4 py-2 font-grotesk text-xs uppercase text-accentInk transition hover:opacity-90 disabled:cursor-wait disabled:opacity-50">
+            className="resq-primary-button">
+            <Plus aria-hidden size={16} />
             {adding ? '추가 중…' : '일정 추가'}
           </button>
         </form>

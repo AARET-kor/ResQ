@@ -3,8 +3,8 @@ export const THEME_STORAGE_KEY = 'resq-theme'
 export type Theme = 'light' | 'dark'
 
 export const THEME_COLORS: Record<Theme, string> = {
-  light: '#f3f6f1',
-  dark: '#010828',
+  light: '#f6f8f5',
+  dark: '#071114',
 }
 
 export function isTheme(value: unknown): value is Theme {

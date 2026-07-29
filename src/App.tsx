@@ -105,7 +105,7 @@ export default function App() {
           : null
   return (
     <>
-      <TextureOverlay />
+      {route === 'home' && <TextureOverlay />}
       {route === 'home' ? (
         <>
           <Hero

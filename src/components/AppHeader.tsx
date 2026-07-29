@@ -35,17 +35,17 @@ export function AppHeader({
   onSignOut: () => void
 }) {
   return (
-    <header className="sticky top-0 z-50 border-b border-line/70 bg-canvas/90 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-[1500px] items-center gap-3 px-4 py-3 sm:px-8">
+    <header className="resq-app-header">
+      <div className="resq-app-header__inner">
         <AppLink
           to="home"
           aria-label="ResQ 홈"
-          className="mr-1 shrink-0 font-grotesk text-lg uppercase tracking-tight text-neon"
+          className="resq-app-brand"
         >
           ResQ
         </AppLink>
-        <nav aria-label="주요 페이지" className="min-w-0 flex-1 overflow-x-auto">
-          <ul className="flex min-w-max items-center gap-1">
+        <nav aria-label="주요 페이지" className="resq-app-nav">
+          <ul className="resq-app-nav__list">
             {NAV.map(({ route: itemRoute, Icon }) => {
               const active = route === itemRoute
               return (
@@ -53,13 +53,9 @@ export function AppHeader({
                   <AppLink
                     to={itemRoute}
                     aria-current={active ? 'page' : undefined}
-                    className={`flex items-center gap-1.5 rounded-full px-3 py-2 font-sans text-sm transition sm:px-4 ${
-                      active
-                        ? 'bg-accent text-accentInk'
-                        : 'text-ink/70 hover:bg-surfaceRaised hover:text-ink'
-                    }`}
+                    className={`resq-nav-link ${active ? 'resq-nav-link--active' : ''}`}
                   >
-                    <Icon size={15} />
+                    <Icon aria-hidden size={17} strokeWidth={1.9} />
                     {ROUTE_LABEL[itemRoute]}
                   </AppLink>
                 </li>
@@ -67,8 +63,8 @@ export function AppHeader({
             })}
           </ul>
         </nav>
-        <div className="flex shrink-0 items-center gap-1">
-          <span className="hidden max-w-32 truncate font-sans text-sm text-ink/65 lg:block">
+        <div className="resq-app-actions">
+          <span className="resq-profile-name">
             {profile.nickname}
           </span>
           <ThemeToggle />
@@ -77,18 +73,18 @@ export function AppHeader({
             onClick={onOpenSettings}
             aria-label="설정"
             title="설정"
-            className="flex h-11 w-11 items-center justify-center rounded-full text-ink/70 transition hover:bg-surfaceRaised hover:text-accent"
+            className="resq-icon-button resq-icon-button--settings"
           >
-            <Settings size={17} />
+            <Settings aria-hidden size={18} />
           </button>
           <button
             type="button"
             onClick={onSignOut}
             aria-label="로그아웃"
             title="로그아웃"
-            className="flex h-11 w-11 items-center justify-center rounded-full text-ink/70 transition hover:bg-surfaceRaised hover:text-red-500"
+            className="resq-icon-button resq-icon-button--danger"
           >
-            <LogOut size={17} />
+            <LogOut aria-hidden size={18} />
           </button>
         </div>
       </div>

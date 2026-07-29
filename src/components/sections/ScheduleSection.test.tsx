@@ -13,11 +13,14 @@ describe('ScheduleSection', () => {
     render(<ScheduleSection events={events} year={2026} month0={6}
       onMonthChange={vi.fn()} onAdd={vi.fn()} onDelete={vi.fn()} />)
     expect(screen.getByText('2026년 7월')).toBeInTheDocument()
-    const eventTitle = screen.getByText('대한내과학회')
+    const eventTitle = screen
+      .getAllByText('대한내과학회')
+      .find((element) => element.closest('li'))
+    expect(eventTitle).toBeDefined()
     expect(eventTitle).toBeInTheDocument()
     // Scope to the event row: the kind label "학회" also appears (as an
     // unrelated exact match) in the add-event <select>'s option list.
-    const row = eventTitle.closest('li')!
+    const row = eventTitle!.closest('li')!
     expect(within(row).getByText('학회')).toBeInTheDocument()
   })
   it('navigates months', async () => {

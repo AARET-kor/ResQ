@@ -1,4 +1,5 @@
 import {
+  CalendarClock,
   CalendarDays,
   CheckCircle2,
   ExternalLink,
@@ -14,6 +15,7 @@ import {
   providerColor,
   type UnifiedTimelineItem,
 } from '../../lib/unifiedTimeline'
+import { AppLink } from '../../app/AppLink'
 import { LiquidGlass } from '../LiquidGlass'
 
 function formatAt(value: string | null): string {
@@ -35,8 +37,8 @@ function providerMark(provider: UnifiedTimelineItem['provider']): string {
     google: 'G',
     microsoft: 'MS',
     todoist: 'TD',
-    apple: '',
-    android: 'A',
+    apple: 'AP',
+    android: 'AN',
     ics: 'ICS',
     caldav: 'DAV',
   }[provider]
@@ -53,72 +55,71 @@ export function UnifiedTimeline({
 }) {
   const items = buildUnifiedTimeline(events, todos, sources)
   return (
-    <LiquidGlass className="mb-6 rounded-2xl">
-      <div className="flex flex-col gap-4 p-5 sm:p-6">
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="h-[6px] w-[6px] bg-neon" />
-              <h3 className="font-grotesk text-xl uppercase">통합 타임라인</h3>
+    <LiquidGlass className="plan-card timeline-card">
+      <div className="plan-card__content">
+        <header className="plan-card__header">
+          <div className="plan-card__heading">
+            <span className="plan-card__icon">
+              <CalendarClock aria-hidden size={21} />
+            </span>
+            <div>
+              <h2 className="plan-card__title">통합 타임라인</h2>
+              <p className="plan-card__subtitle">
+                ResQ·Google·Outlook·Todoist·Apple·Galaxy의 일정을 출처별로 모아봅니다.
+              </p>
             </div>
-            <p className="mt-1 font-sans text-sm text-cream/65">
-              ResQ·Google·Outlook·Todoist·Apple·Galaxy 일정을 중복 없이 표시합니다.
-            </p>
           </div>
-          <span className="font-sans text-sm text-cream/65">
-            {items.length}개 항목
-          </span>
-        </div>
-        <ol className="grid gap-2 lg:grid-cols-2">
+          <span className="plan-count">{items.length}개 항목</span>
+        </header>
+
+        {items.length > 0 ? <ol className="timeline-grid">
           {items.slice(0, 16).map((item) => (
             <li
               key={item.key}
-              className={`flex items-center gap-3 rounded-lg border border-cream/10 bg-cream/[0.05] px-3 py-3 ${
-                item.done ? 'opacity-50' : ''
-              }`}
+              className={`timeline-item ${item.done ? 'timeline-item--done' : ''}`}
             >
               <span
                 title={`${item.providerLabel} 출처`}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-sans text-xs font-semibold"
-                style={{ backgroundColor: `${item.color}22`, color: item.color }}
+                aria-label={`${item.providerLabel} 출처`}
+                className="timeline-provider-mark"
+                style={{ backgroundColor: `${item.color}22`, borderColor: `${item.color}66` }}
               >
                 {providerMark(item.provider)}
               </span>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className={`truncate font-sans text-xs ${item.done ? 'line-through' : ''}`}>
+              <div className="timeline-item__main">
+                <div className="timeline-item__title">
+                  <span className={item.done ? 'line-through' : ''}>
                     {item.title}
                   </span>
                   {item.duplicateCount > 1 && (
                     <span
                       title={`중복 출처: ${item.duplicateProviders.map(providerMark).join(', ')}`}
-                      className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-300/10 px-1.5 py-0.5 font-sans text-xs text-amber-800 dark:text-amber-200"
+                      className="timeline-duplicate-chip"
                     >
-                      <Link2 size={9} />
+                      <Link2 aria-hidden size={11} />
                       {item.duplicateProviders.map(providerMark).join('+')} · {item.duplicateCount}
                     </span>
                   )}
                 </div>
-                <div className="mt-1 flex flex-wrap items-center gap-2 font-sans text-xs text-cream/65">
-                  <span className="inline-flex items-center gap-1">
+                <div className="timeline-item__meta">
+                  <span className="timeline-meta-chip">
                     {item.type === 'event'
-                      ? <CalendarDays size={9} />
-                      : <CheckCircle2 size={9} />}
+                      ? <CalendarDays aria-hidden size={12} />
+                      : <CheckCircle2 aria-hidden size={12} />}
                     {formatAt(item.at)}
                   </span>
                   <span
-                    className="rounded-full border px-1.5 py-0.5"
+                    className="timeline-source-chip"
                     style={{
                       borderColor: `${providerColor(item.provider)}55`,
-                      color: providerColor(item.provider),
                     }}
                   >
                     {item.providerLabel}
                   </span>
-                  <span className="inline-flex items-center gap-1">
+                  <span className="timeline-meta-chip">
                     {item.syncMode === 'read_only'
-                      ? <><LockKeyhole size={9} /> 읽기 전용</>
-                      : <><RefreshCw size={9} /> 양방향</>}
+                      ? <><LockKeyhole aria-hidden size={12} /> 읽기 전용</>
+                      : <><RefreshCw aria-hidden size={12} /> 양방향</>}
                   </span>
                 </div>
               </div>
@@ -129,19 +130,31 @@ export function UnifiedTimeline({
                   rel="noreferrer"
                   aria-label={`${item.title} 원본 앱에서 열기`}
                   title="원본 앱에서 열기"
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-cream/15 text-cream/70 transition hover:border-neon/50 hover:text-neon"
+                  className="timeline-external-link"
                 >
-                  <ExternalLink size={13} />
+                  <ExternalLink aria-hidden size={16} />
                 </a>
               )}
             </li>
           ))}
-          {items.length === 0 && (
-            <li className="font-sans text-xs text-cream/65">
-              아직 표시할 일정이나 할 일이 없습니다.
-            </li>
-          )}
-        </ol>
+        </ol> : (
+          <div className="timeline-empty">
+            <div className="timeline-empty__copy">
+              <span className="timeline-empty__icon">
+                <CalendarDays aria-hidden size={22} />
+              </span>
+              <div>
+                <p className="resq-empty-state__title">아직 모인 일정이 없습니다</p>
+                <p className="resq-empty-state__body">
+                  첫 일정을 추가하거나 쓰고 있는 캘린더를 연결해 보세요.
+                </p>
+              </div>
+            </div>
+            <AppLink to="integrations" className="resq-secondary-button">
+              연동 시작
+            </AppLink>
+          </div>
+        )}
       </div>
     </LiquidGlass>
   )

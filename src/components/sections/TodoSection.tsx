@@ -1,5 +1,5 @@
 import { useRef, useState, type ClipboardEvent, type FormEvent } from 'react'
-import { Mic } from 'lucide-react'
+import { ClipboardPaste, Inbox, ListTodo, Mic, Plus } from 'lucide-react'
 import { LiquidGlass } from '../LiquidGlass'
 import { sortTodos, PRIORITY_LABEL, PRIORITY_COLOR, type Todo, type TodoPriority } from '../../lib/todos'
 import type { ExtractedTodo } from '../../lib/todoExtract'
@@ -118,71 +118,87 @@ export function TodoSection({
   }
 
   const sorted = sortTodos(todos)
+  const openCount = sorted.filter((todo) => !todo.done).length
 
   return (
-    <LiquidGlass className="rounded-2xl">
-      <div className="flex flex-col gap-4 p-6 text-sm">
-        <div className="flex items-center gap-2">
-          <span className="h-[6px] w-[6px] bg-neon" />
-          <h3 className="font-grotesk text-xl uppercase">할 일</h3>
-        </div>
+    <LiquidGlass className="plan-card">
+      <div className="plan-card__content">
+        <header className="plan-card__header">
+          <div className="plan-card__heading">
+            <span className="plan-card__icon">
+              <ListTodo aria-hidden size={21} />
+            </span>
+            <div>
+              <h2 className="plan-card__title">할 일</h2>
+              <p className="plan-card__subtitle">해야 할 일을 빠르게 기록하고 우선순위를 정하세요.</p>
+            </div>
+          </div>
+          <span className="plan-count">{openCount}개 남음</span>
+        </header>
 
-        <form onSubmit={submit} className="flex flex-col gap-2">
-          <div className="flex gap-2">
+        <form onSubmit={submit} className="todo-composer">
+          <div className="todo-title-row">
             <input
               aria-label="할 일 추가"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="예: 회진 준비"
-              className="flex-1 rounded-md bg-cream/5 px-3 py-2 font-sans text-sm text-cream outline-none focus:ring-1 focus:ring-neon"
+              className="resq-field"
             />
             {SpeechRecognitionCtor && (
               <button
                 type="button"
                 aria-label="음성 입력"
                 onClick={handleMicClick}
-                className={`flex h-9 w-9 items-center justify-center rounded-md border border-cream/30 text-cream transition hover:bg-cream/10 ${listening ? 'animate-pulse text-neon' : ''}`}
+                className={`resq-icon-control ${listening ? 'animate-pulse' : ''}`}
               >
-                <Mic size={16} />
+                <Mic aria-hidden size={18} />
               </button>
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            {PRIORITIES.map((p) => {
-              const selected = priority === p
-              return (
-                <button
-                  key={p}
-                  type="button"
-                  aria-label={`우선순위 ${PRIORITY_LABEL[p]}`}
-                  aria-pressed={selected}
-                  onClick={() => setPriority(p)}
-                  style={selected ? { background: PRIORITY_COLOR[p], borderColor: PRIORITY_COLOR[p] } : undefined}
-                  className={`rounded-md border px-3 py-1 font-sans text-sm uppercase transition ${
-                    selected ? 'text-[#07111f]' : 'border-cream/30 text-cream/70 hover:bg-cream/10'
-                  }`}
-                >
-                  {PRIORITY_LABEL[p]}
-                </button>
-              )
-            })}
-            <input
-              aria-label="마감일"
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              className="rounded-md bg-cream/5 px-2 py-1 font-sans text-sm text-cream outline-none focus:ring-1 focus:ring-neon"
-            />
-            <input
-              aria-label="마감 시간"
-              type="time"
-              value={dueTime}
-              onChange={(e) => setDueTime(e.target.value)}
-              className="rounded-md bg-cream/5 px-2 py-1 font-sans text-sm text-cream outline-none focus:ring-1 focus:ring-neon"
-            />
+          <div className="todo-options-row">
+            <div className="priority-control" aria-label="우선순위 선택">
+              {PRIORITIES.map((p) => {
+                const selected = priority === p
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    aria-label={`우선순위 ${PRIORITY_LABEL[p]}`}
+                    aria-pressed={selected}
+                    onClick={() => setPriority(p)}
+                    style={selected ? { background: PRIORITY_COLOR[p] } : undefined}
+                    className={`priority-button ${selected ? 'priority-button--selected' : ''}`}
+                  >
+                    {PRIORITY_LABEL[p]}
+                  </button>
+                )
+              })}
+            </div>
+            <label className="resq-field-label">
+              마감일
+              <input
+                aria-label="마감일"
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="resq-field"
+              />
+            </label>
+            <label className="resq-field-label">
+              시간
+              <input
+                aria-label="마감 시간"
+                type="time"
+                value={dueTime}
+                onChange={(e) => setDueTime(e.target.value)}
+                className="resq-field"
+              />
+            </label>
             <button type="submit" disabled={adding}
-              className="rounded-md bg-accent px-4 py-2 font-grotesk text-xs uppercase text-accentInk transition hover:opacity-90 disabled:cursor-wait disabled:opacity-50">
+              className="resq-primary-button">
+              <Plus aria-hidden size={16} />
               {adding ? '추가 중…' : '추가'}
             </button>
           </div>
@@ -194,34 +210,44 @@ export function TodoSection({
           tabIndex={0}
           onPaste={handlePaste}
           aria-busy={extracting}
-          className="flex flex-col items-center gap-1 rounded-lg border border-dashed border-cream/25 px-4 py-3 text-center font-sans text-sm text-cream/70 outline-none focus:ring-1 focus:ring-neon"
+          className="paste-zone"
         >
-          {extracting ? 'AI가 할일을 뽑는 중…' : '메모/사진 붙여넣기 → AI가 할일 생성'}
+          <span className="paste-zone__icon">
+            <ClipboardPaste aria-hidden size={18} />
+          </span>
+          <span>
+            <strong className="paste-zone__title">
+              {extracting ? 'AI가 할일을 뽑는 중…' : '메모 또는 사진 붙여넣기'}
+            </strong>
+            <span className="paste-zone__hint">
+              {extracting ? '잠시만 기다려 주세요.' : '복사한 내용을 붙여넣으면 AI가 할 일을 정리합니다.'}
+            </span>
+          </span>
         </div>
 
         {extracted.length > 0 && (
-          <div className="flex flex-col gap-2 rounded-md bg-cream/5 px-4 py-3">
-            <div className="flex items-center justify-between">
-              <span className="font-sans text-sm uppercase text-cream/70">추출된 할일</span>
+          <div className="extracted-todo-panel">
+            <div className="extracted-todo-panel__header">
+              <span className="extracted-todo-panel__title">AI가 찾은 할 일</span>
               <button
                 onClick={onDismissExtracted}
-                className="font-sans text-sm uppercase text-cream/65 transition hover:text-cream"
+                className="resq-text-action"
               >
                 닫기
               </button>
             </div>
-            <ul className="flex flex-col gap-2">
+            <ul className="extracted-todo-list">
               {extracted.map((t, i) => (
-                <li key={i} className="flex items-center gap-3 rounded-md bg-cream/5 px-3 py-2">
-                  <span className="flex-1 font-sans text-sm">{t.title}</span>
+                <li key={i} className="extracted-todo-row">
+                  <span className="todo-row__title">{t.title}</span>
                   {t.due_date && (
-                    <span className="font-sans text-sm uppercase text-cream/70">{formatDue(t.due_date, t.due_time)}</span>
+                    <span className="resq-meta-chip">{formatDue(t.due_date, t.due_time)}</span>
                   )}
-                  <span className="font-sans text-sm uppercase text-cream/70">{PRIORITY_LABEL[t.priority]}</span>
+                  <span className="resq-meta-chip">{PRIORITY_LABEL[t.priority]}</span>
                   <button
                     onClick={() => onAddExtracted?.(t)}
                     disabled={addingExtracted}
-                    className="rounded-md border border-cream/30 px-3 py-1 font-grotesk text-sm uppercase text-cream transition hover:bg-cream/10 disabled:cursor-wait disabled:opacity-50"
+                    className="resq-secondary-button"
                   >
                     할일에 추가
                   </button>
@@ -233,15 +259,15 @@ export function TodoSection({
 
         {loading && (
           <div aria-label="할 일 불러오는 중" className="flex animate-pulse flex-col gap-2">
-            {[0, 1, 2].map((item) => <div key={item} className="h-9 rounded-md bg-cream/10" />)}
+            {[0, 1, 2].map((item) => <div key={item} className="skeleton-line" />)}
           </div>
         )}
-        {!loading && <ul className="flex flex-col gap-2">
+        {!loading && <ul className="todo-list">
           {sorted.map((t) => (
             <li
               key={t.id}
               style={{ borderLeft: `3px solid ${PRIORITY_COLOR[t.priority]}` }}
-              className={`flex items-center gap-3 rounded-md bg-cream/5 py-2 pl-3 pr-3 ${t.done ? 'opacity-50' : ''}`}
+              className={`todo-row ${t.done ? 'todo-row--done' : ''}`}
             >
               <input
                 type="checkbox"
@@ -252,20 +278,21 @@ export function TodoSection({
                   t.source_provider
                   && readOnlySourceKeys.has(`${t.source_provider}:${t.external_source_id}`),
                 )}
-                className="h-4 w-4 accent-[#6FFF00]"
+                className="h-5 w-5"
+                style={{ accentColor: 'rgb(var(--color-accent))' }}
               />
-              <span className={`flex-1 font-sans text-sm ${t.done ? 'text-cream/65 line-through' : 'text-cream'}`}>
+              <span className={`todo-row__title ${t.done ? 'todo-row__title--done' : ''}`}>
                 {t.title}
               </span>
               {t.source_provider && (
-                <span className="rounded-full border border-cream/15 px-2 py-0.5 font-sans text-xs uppercase text-cream/65">
+                <span className="resq-meta-chip">
                   {PROVIDER_LABEL[t.source_provider]}
                 </span>
               )}
               {t.due_date && (
-                <span className="font-sans text-sm uppercase text-cream/70">{formatDue(t.due_date, t.due_time)}</span>
+                <span className="resq-meta-chip">{formatDue(t.due_date, t.due_time)}</span>
               )}
-              <span className="font-sans text-sm uppercase" style={{ color: PRIORITY_COLOR[t.priority] }}>
+              <span className="resq-meta-chip" style={{ borderColor: PRIORITY_COLOR[t.priority] }}>
                 {PRIORITY_LABEL[t.priority]}
               </span>
               <button
@@ -277,14 +304,22 @@ export function TodoSection({
                   t.source_provider
                   && readOnlySourceKeys.has(`${t.source_provider}:${t.external_source_id}`),
                 )}
-                className="font-sans text-sm uppercase text-cream/65 transition hover:text-red-700 dark:hover:text-red-400 disabled:cursor-wait disabled:opacity-30"
+                className="resq-text-action"
               >
                 삭제
               </button>
             </li>
           ))}
           {sorted.length === 0 && (
-            <li className="font-sans text-xs uppercase text-cream/65">할 일이 없습니다 — 큐비가 쉬는 중 🐾</li>
+            <li className="resq-empty-state">
+              <span className="resq-empty-state__icon">
+                <Inbox aria-hidden size={22} />
+              </span>
+              <div>
+                <p className="resq-empty-state__title">등록된 할 일이 없습니다</p>
+                <p className="resq-empty-state__body">위 입력창에서 오늘의 첫 할 일을 추가해 보세요.</p>
+              </div>
+            </li>
           )}
         </ul>}
       </div>
