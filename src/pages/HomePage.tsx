@@ -125,14 +125,14 @@ export function HomePage({
 
   return (
     <>
-      <div className="sticky top-0 z-40 border-b border-line/70 bg-canvas/88 px-4 py-3 backdrop-blur-xl">
+      <div className="home-dashboard-nav sticky top-0 z-40 border-b border-line/70 bg-canvas/88 px-4 py-3 backdrop-blur-xl">
         <nav aria-label="홈 빠른 이동" className="mx-auto max-w-[1500px] overflow-x-auto">
           <ul className="flex min-w-max items-center justify-center gap-2">
             {(['plan', 'team', 'papers', 'integrations'] as const).map((route) => (
               <li key={route}>
                 <AppLink
                   to={route}
-                  className="block rounded-full border border-cream/15 px-4 py-2 font-sans text-sm text-cream/75 transition hover:border-neon/50 hover:text-neon"
+                  className="home-dashboard-nav__link block rounded-full border border-cream/15 px-4 py-2 font-sans text-sm text-cream/75 transition hover:border-neon/50 hover:text-neon"
                 >
                   {ROUTE_LABEL[route]}
                 </AppLink>
@@ -146,14 +146,14 @@ export function HomePage({
         <section aria-labelledby="briefing-title">
           <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
-              <p className="font-sans text-sm uppercase tracking-[0.24em] text-neon">
+              <p className="home-briefing-eyebrow font-sans text-sm uppercase tracking-[0.24em]">
                 Today at a glance
               </p>
               <h2 id="briefing-title" className="mt-2 font-grotesk text-4xl uppercase sm:text-6xl">
                 오늘의 브리핑
               </h2>
             </div>
-            <p className="max-w-md font-sans text-xs leading-relaxed text-cream/65">
+            <p className="max-w-md font-sans text-sm leading-relaxed text-cream/65">
               홈에서는 상태만 빠르게 읽고, 실제 입력과 관리는 각 기능 페이지에서 집중해서 처리합니다.
             </p>
           </div>
@@ -203,7 +203,7 @@ export function HomePage({
             <h2 id="workspace-title" className="mt-2 font-grotesk text-4xl uppercase sm:text-6xl">
               기능마다<br />자기만의 공간
             </h2>
-            <p className="mt-5 font-sans text-xs leading-relaxed text-cream/70">
+            <p className="mt-5 font-sans text-sm leading-relaxed text-cream/70">
               한 화면을 끝없이 내려가며 기능을 찾지 않아도 됩니다. 필요한 작업을 고르면 전용 페이지에서 관련 정보와 조작만 만납니다.
             </p>
           </div>
@@ -226,7 +226,7 @@ export function HomePage({
                   </div>
                   <div>
                     <h3 className="font-grotesk text-3xl uppercase sm:text-4xl">{title}</h3>
-                    <p className="mt-3 max-w-lg font-sans text-xs leading-relaxed text-cream/65">
+                    <p className="mt-3 max-w-lg font-sans text-sm leading-relaxed text-cream/65">
                       {description}
                     </p>
                     <span className="mt-6 inline-flex items-center gap-2 font-sans text-sm uppercase text-cream/70 transition group-hover:text-cream">
@@ -248,7 +248,7 @@ export function HomePage({
             <h2 id="research-home-title" className="mt-8 font-grotesk text-4xl uppercase sm:text-6xl">
               {profile.specialty}<br />근거를 놓치지 않게
             </h2>
-            <p className="mt-5 max-w-xl font-sans text-xs leading-relaxed text-cream/70">
+            <p className="mt-5 max-w-xl font-sans text-sm leading-relaxed text-cream/70">
               핵심 의학 저널과 전공 학회지를 함께 탐색하고, 선택한 논문을 분석 보고서와 연구 아이디어로 발전시킵니다.
             </p>
             <AppLink
@@ -293,7 +293,7 @@ export function HomePage({
               </h2>
             </div>
             <div>
-              <p className="font-sans text-xs leading-relaxed text-cream/70">
+              <p className="font-sans text-sm leading-relaxed text-cream/70">
                 Google Calendar·Tasks, Outlook·Microsoft To Do, Todoist, Apple·Galaxy 기기 캘린더와 ICS·CalDAV를 출처별로 구분합니다. 읽기 전용과 양방향 모드를 목록마다 선택할 수 있습니다.
               </p>
               <div className="mt-6 flex flex-wrap gap-2">
@@ -328,7 +328,7 @@ export function HomePage({
             진료 판단이 아니라<br />
             <span className="text-neon">업무의 여유를 위한 도구</span>
           </h2>
-          <p className="mx-auto mt-6 max-w-xl font-sans text-xs leading-relaxed text-cream/65">
+          <p className="mx-auto mt-6 max-w-xl font-sans text-sm leading-relaxed text-cream/65">
             반복되는 일정 정리, 팀 조율, 논문 탐색을 덜어내고 중요한 판단에 더 집중할 수 있도록 설계했습니다.
           </p>
           <AppLink

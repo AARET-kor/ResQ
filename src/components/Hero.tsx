@@ -178,7 +178,7 @@ export function Hero({
             style={{ top: '16%', zIndex: 2 }}
           >
             <span
-              className="whitespace-nowrap font-grotesk uppercase text-white"
+              className="whitespace-nowrap font-brand uppercase text-white"
               style={{ fontSize: 'clamp(90px, 26vw, 340px)', lineHeight: 1, letterSpacing: '-0.02em', opacity: 0.22 }}
             >
               {mascot.speciesLabel}
@@ -204,7 +204,7 @@ export function Hero({
 
         {/* Header */}
         <header className="absolute inset-x-0 top-0 flex items-center justify-between px-6 py-8 sm:px-10" style={{ zIndex: 60 }}>
-          <span className="font-grotesk text-base uppercase">ResQ</span>
+          <span className="font-brand text-base uppercase">ResQ</span>
           <nav className="hidden lg:block">
             <LiquidGlass className="hero-glass rounded-[28px]">
               <ul className="flex gap-8 px-[52px] py-[24px]">

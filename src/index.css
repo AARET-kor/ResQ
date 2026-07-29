@@ -5,21 +5,32 @@
 :root,
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --color-canvas: 7 17 20;
-  --color-surface: 14 28 31;
-  --color-surface-raised: 22 41 39;
-  --color-ink: 242 247 243;
-  --color-muted: 169 187 177;
-  --color-line: 48 72 63;
-  --color-accent: 124 255 138;
-  --color-accent-ink: 5 34 16;
-  --color-accent-soft: 23 59 39;
+  --font-ui: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Apple SD Gothic Neo", "Noto Sans KR", "Segoe UI", sans-serif;
+  --font-brand: Anton, "SF Pro Display", "Noto Sans KR", sans-serif;
+  --font-serif: "Noto Serif KR", Georgia, serif;
+  --font-mono: "SF Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --color-canvas: 1 8 40;
+  --color-surface: 10 20 50;
+  --color-surface-raised: 18 31 65;
+  --color-ink: 239 244 255;
+  --color-muted: 162 177 202;
+  --color-line: 75 91 124;
+  --color-control-line: 88 108 145;
+  --color-accent: 111 255 0;
+  --color-accent-ink: 1 26 10;
+  --color-accent-soft: 24 55 42;
+  --color-pop: 255 45 141;
+  --color-pop-soft: 72 25 67;
+  --color-pop-ink: 255 255 255;
   --color-danger: 255 133 133;
-  --page-glow: 72 180 115;
-  --shadow-color: 0 8 6;
+  --page-glow: 38 80 160;
+  --page-glow-secondary: 232 130 180;
+  --pop-glow-alpha: 0;
+  --shadow-color: 0 7 24;
   --texture-blend-mode: lighten;
-  --texture-opacity: 0.16;
-  --accent-plan: #7cff8a;
+  --texture-opacity: 0.14;
+  --accent-plan: #6fff00;
   --accent-team: #69c7ff;
   --accent-paper: #ffb86b;
   --accent-connect: #b9a2ff;
@@ -27,20 +38,26 @@
 
 :root[data-theme='light'] {
   color-scheme: light;
-  --color-canvas: 246 248 245;
+  --color-canvas: 248 247 244;
   --color-surface: 255 255 255;
-  --color-surface-raised: 237 243 238;
-  --color-ink: 23 33 27;
-  --color-muted: 82 105 92;
-  --color-line: 210 222 214;
+  --color-surface-raised: 243 242 238;
+  --color-ink: 23 30 26;
+  --color-muted: 86 96 90;
+  --color-line: 218 222 215;
+  --color-control-line: 128 138 131;
   --color-accent: 22 122 74;
   --color-accent-ink: 255 255 255;
-  --color-accent-soft: 221 244 230;
+  --color-accent-soft: 226 246 233;
+  --color-pop: 255 45 141;
+  --color-pop-soft: 255 229 241;
+  --color-pop-ink: 23 30 26;
   --color-danger: 176 47 47;
-  --page-glow: 151 215 174;
-  --shadow-color: 36 63 47;
+  --page-glow: 130 205 157;
+  --page-glow-secondary: 255 45 141;
+  --pop-glow-alpha: 0.055;
+  --shadow-color: 31 38 34;
   --texture-blend-mode: multiply;
-  --texture-opacity: 0.025;
+  --texture-opacity: 0.02;
   --accent-plan: #167a4a;
   --accent-team: #006b94;
   --accent-paper: #a34f08;
@@ -61,11 +78,14 @@
     min-height: 100vh;
     margin: 0;
     background:
-      radial-gradient(circle at 82% -10%, rgb(var(--page-glow) / 0.12), transparent 38rem),
+      radial-gradient(circle at 88% -12%, rgb(var(--page-glow-secondary) / var(--pop-glow-alpha)), transparent 32rem),
+      radial-gradient(circle at 8% 38%, rgb(var(--page-glow) / 0.055), transparent 30rem),
       linear-gradient(180deg, rgb(var(--color-surface) / 0.22), transparent 32rem),
       rgb(var(--color-canvas));
     color: rgb(var(--color-ink));
-    font-family: "Noto Sans KR", Inter, system-ui, sans-serif;
+    font-family: var(--font-ui);
+    font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+    font-optical-sizing: auto;
     line-height: 1.6;
     transition: background-color 180ms ease, color 180ms ease;
   }
@@ -82,6 +102,10 @@
     color: rgb(var(--color-ink));
   }
 
+  :root[data-theme='light'] ::selection {
+    background: rgb(var(--color-pop) / 0.18);
+  }
+
   :focus-visible {
     outline: 2px solid rgb(var(--color-accent));
     outline-offset: 3px;
@@ -94,6 +118,51 @@
  * while changes to tailwind.config.js require a server restart. Keeping the
  * visible shell here prevents a half-old/half-new theme during development.
  */
+.font-sans {
+  font-family: var(--font-ui);
+}
+
+.font-grotesk {
+  font-family: var(--font-display);
+}
+
+.font-brand {
+  font-family: var(--font-brand);
+}
+
+.font-serif {
+  font-family: var(--font-serif);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+.home-briefing-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: rgb(var(--color-accent));
+}
+
+:root[data-theme='light'] .home-briefing-eyebrow::before {
+  width: 18px;
+  height: 3px;
+  border-radius: 999px;
+  background: rgb(var(--color-pop));
+  content: '';
+}
+
+:root[data-theme='light'] .home-dashboard-nav {
+  border-bottom-color: rgb(var(--color-pop) / 0.2);
+}
+
+:root[data-theme='light'] .home-dashboard-nav__link:hover {
+  border-color: rgb(var(--color-pop) / 0.58);
+  background: rgb(var(--color-pop-soft) / 0.62);
+  color: rgb(var(--color-ink));
+}
+
 .bg-bg,
 .bg-canvas {
   background-color: rgb(var(--color-canvas));
@@ -253,9 +322,15 @@
     0 18px 50px rgb(0 7 24 / 0.18);
 }
 
-.hero-theme-toggle {
+.resq-theme-toggle.hero-theme-toggle {
   border-color: rgb(255 255 255 / 0.28);
   background: rgb(1 8 40 / 0.48);
+  color: white;
+}
+
+.resq-theme-toggle.hero-theme-toggle:hover {
+  border-color: rgb(255 255 255 / 0.5);
+  background: rgb(1 8 40 / 0.68);
   color: white;
 }
 
@@ -305,9 +380,12 @@
 }
 
 .page-intro__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
   margin: 0 0 0.65rem;
   color: rgb(var(--color-accent));
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: var(--font-mono);
   font-size: 0.76rem;
   font-weight: 600;
   letter-spacing: 0.16em;
@@ -317,11 +395,19 @@
 .page-intro__title {
   margin: 0;
   color: rgb(var(--color-ink));
-  font-family: "Noto Serif KR", Georgia, serif;
+  font-family: var(--font-display);
   font-size: clamp(2.25rem, 4vw, 3.6rem);
-  font-weight: 800;
-  letter-spacing: -0.055em;
+  font-weight: 780;
+  letter-spacing: -0.045em;
   line-height: 1.08;
+}
+
+:root[data-theme='light'] .page-intro__eyebrow::before {
+  width: 18px;
+  height: 3px;
+  border-radius: 999px;
+  background: rgb(var(--color-pop));
+  content: '';
 }
 
 .page-intro__description {
@@ -358,7 +444,7 @@
 
 .resq-app-brand {
   color: rgb(var(--color-accent));
-  font-family: Anton, "Noto Sans KR", sans-serif;
+  font-family: var(--font-brand);
   font-size: 1.25rem;
   letter-spacing: -0.02em;
   line-height: 1;
@@ -410,6 +496,12 @@
   box-shadow: inset 0 -2px 0 rgb(var(--color-accent));
 }
 
+:root[data-theme='light'] .resq-nav-link--active {
+  background: rgb(var(--color-surface-raised));
+  color: rgb(var(--color-ink));
+  box-shadow: inset 0 -2px 0 rgb(var(--color-pop));
+}
+
 .resq-app-actions {
   display: flex;
   align-items: center;
@@ -441,7 +533,7 @@
 }
 
 .resq-theme-toggle {
-  border-color: rgb(var(--color-line));
+  border-color: rgb(var(--color-control-line));
   background: rgb(var(--color-surface-raised));
   color: rgb(var(--color-ink));
 }
@@ -489,9 +581,10 @@
 .plan-summary__value {
   display: block;
   color: rgb(var(--color-ink));
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: var(--font-mono);
   font-size: 1.1rem;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
   line-height: 1.2;
 }
 
@@ -553,6 +646,7 @@
 .plan-card__title {
   margin: 0;
   color: rgb(var(--color-ink));
+  font-family: var(--font-display);
   font-size: 1.25rem;
   font-weight: 800;
   letter-spacing: -0.025em;
@@ -572,16 +666,17 @@
   border-radius: 999px;
   background: rgb(var(--color-surface-raised));
   color: rgb(var(--color-muted));
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: var(--font-mono);
   font-size: 0.76rem;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .resq-field,
 .resq-select {
   width: 100%;
   min-height: 48px;
-  border: 1px solid rgb(var(--color-line));
+  border: 1px solid rgb(var(--color-control-line));
   border-radius: 0.78rem;
   background: rgb(var(--color-surface-raised));
   color: rgb(var(--color-ink));
@@ -652,7 +747,7 @@
   align-items: center;
   justify-content: center;
   min-height: 44px;
-  border: 1px solid rgb(var(--color-line));
+  border: 1px solid rgb(var(--color-control-line));
   border-radius: 0.72rem;
   background: rgb(var(--color-surface));
   color: rgb(var(--color-ink));
@@ -1122,9 +1217,10 @@
 
 .month-picker__year {
   color: rgb(var(--color-ink));
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: var(--font-mono);
   font-size: 0.82rem;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .month-picker__grid {
@@ -1203,15 +1299,24 @@
   width: 28px;
   height: 28px;
   border-radius: 999px;
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: var(--font-mono);
   font-size: 0.73rem;
   font-weight: 650;
+  font-variant-numeric: tabular-nums;
 }
 
 .calendar-day-number--today {
   background: rgb(var(--color-accent));
   color: rgb(var(--color-accent-ink));
   box-shadow: 0 5px 14px rgb(var(--color-accent) / 0.25);
+}
+
+:root[data-theme='light'] .calendar-day-number--today {
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-ink));
+  box-shadow:
+    0 0 0 2px rgb(var(--color-pop)),
+    0 5px 14px rgb(var(--color-pop) / 0.16);
 }
 
 .calendar-day-events {
@@ -1245,6 +1350,7 @@
 
 .calendar-mobile-count {
   display: none;
+  font-variant-numeric: tabular-nums;
 }
 
 .schedule-list-heading {
@@ -1254,8 +1360,9 @@
 .schedule-event-row__time {
   flex: 0 0 auto;
   color: rgb(var(--color-muted));
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: var(--font-mono);
   font-size: 0.76rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .schedule-event-row__title {
@@ -1422,9 +1529,10 @@
     border-radius: 999px;
     background: rgb(var(--color-accent-soft));
     color: rgb(var(--color-accent));
-    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-family: var(--font-mono);
     font-size: 0.68rem;
     font-weight: 800;
+    font-variant-numeric: tabular-nums;
   }
 
   .schedule-event-row,

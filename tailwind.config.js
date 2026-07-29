@@ -19,11 +19,12 @@ export default {
         neon: 'rgb(var(--color-accent) / <alpha-value>)',
       },
       fontFamily: {
-        sans: ['"Noto Sans KR"', 'Inter', 'system-ui', 'sans-serif'],
-        grotesk: ['Anton', '"Noto Sans KR"', 'system-ui', 'sans-serif'],
+        sans: ['var(--font-ui)'],
+        grotesk: ['var(--font-display)'],
+        brand: ['var(--font-brand)'],
         condiment: ['Condiment', 'cursive'],
-        serif: ['"Noto Serif KR"', 'Georgia', 'serif'],
-        mono: ['"IBM Plex Mono"', '"Noto Sans KR"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+        serif: ['var(--font-serif)'],
+        mono: ['var(--font-mono)'],
       },
       fontSize: {
         xs: ['13px', { lineHeight: '1.6' }],
