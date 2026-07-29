@@ -23,6 +23,7 @@ export interface PaperAnalysis {
   year: string | null
   abstract: string | null
   analysis: string
+  created_at: string
   kind?: string
   has_fulltext?: boolean
   source?: string | null

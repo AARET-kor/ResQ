@@ -120,8 +120,8 @@ export function TodoSection({
   const sorted = sortTodos(todos)
 
   return (
-    <LiquidGlass className="rounded-2xl border border-white/15 bg-[#0B1433]">
-      <div className="flex flex-col gap-4 p-6 text-[13px]">
+    <LiquidGlass className="rounded-2xl">
+      <div className="flex flex-col gap-4 p-6 text-sm">
         <div className="flex items-center gap-2">
           <span className="h-[6px] w-[6px] bg-neon" />
           <h3 className="font-grotesk text-xl uppercase">할 일</h3>
@@ -134,14 +134,14 @@ export function TodoSection({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="예: 회진 준비"
-              className="flex-1 rounded-md bg-white/5 px-3 py-2 font-mono text-sm text-cream outline-none focus:ring-1 focus:ring-neon"
+              className="flex-1 rounded-md bg-cream/5 px-3 py-2 font-sans text-sm text-cream outline-none focus:ring-1 focus:ring-neon"
             />
             {SpeechRecognitionCtor && (
               <button
                 type="button"
                 aria-label="음성 입력"
                 onClick={handleMicClick}
-                className={`flex h-9 w-9 items-center justify-center rounded-md border border-white/30 text-cream transition hover:bg-white/10 ${listening ? 'animate-pulse text-neon' : ''}`}
+                className={`flex h-9 w-9 items-center justify-center rounded-md border border-cream/30 text-cream transition hover:bg-cream/10 ${listening ? 'animate-pulse text-neon' : ''}`}
               >
                 <Mic size={16} />
               </button>
@@ -159,8 +159,8 @@ export function TodoSection({
                   aria-pressed={selected}
                   onClick={() => setPriority(p)}
                   style={selected ? { background: PRIORITY_COLOR[p], borderColor: PRIORITY_COLOR[p] } : undefined}
-                  className={`rounded-md border px-3 py-1 font-mono text-[11px] uppercase transition ${
-                    selected ? 'text-bg' : 'border-white/30 text-cream/70 hover:bg-white/10'
+                  className={`rounded-md border px-3 py-1 font-sans text-sm uppercase transition ${
+                    selected ? 'text-[#07111f]' : 'border-cream/30 text-cream/70 hover:bg-cream/10'
                   }`}
                 >
                   {PRIORITY_LABEL[p]}
@@ -172,17 +172,17 @@ export function TodoSection({
               type="date"
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
-              className="rounded-md bg-white/5 px-2 py-1 font-mono text-[11px] text-cream outline-none focus:ring-1 focus:ring-neon"
+              className="rounded-md bg-cream/5 px-2 py-1 font-sans text-sm text-cream outline-none focus:ring-1 focus:ring-neon"
             />
             <input
               aria-label="마감 시간"
               type="time"
               value={dueTime}
               onChange={(e) => setDueTime(e.target.value)}
-              className="rounded-md bg-white/5 px-2 py-1 font-mono text-[11px] text-cream outline-none focus:ring-1 focus:ring-neon"
+              className="rounded-md bg-cream/5 px-2 py-1 font-sans text-sm text-cream outline-none focus:ring-1 focus:ring-neon"
             />
             <button type="submit" disabled={adding}
-              className="rounded-md bg-neon px-4 py-2 font-grotesk text-xs uppercase text-bg transition hover:opacity-90 disabled:cursor-wait disabled:opacity-50">
+              className="rounded-md bg-accent px-4 py-2 font-grotesk text-xs uppercase text-accentInk transition hover:opacity-90 disabled:cursor-wait disabled:opacity-50">
               {adding ? '추가 중…' : '추가'}
             </button>
           </div>
@@ -194,34 +194,34 @@ export function TodoSection({
           tabIndex={0}
           onPaste={handlePaste}
           aria-busy={extracting}
-          className="flex flex-col items-center gap-1 rounded-lg border border-dashed border-white/25 px-4 py-3 text-center font-mono text-[11px] text-cream/50 outline-none focus:ring-1 focus:ring-neon"
+          className="flex flex-col items-center gap-1 rounded-lg border border-dashed border-cream/25 px-4 py-3 text-center font-sans text-sm text-cream/70 outline-none focus:ring-1 focus:ring-neon"
         >
           {extracting ? 'AI가 할일을 뽑는 중…' : '메모/사진 붙여넣기 → AI가 할일 생성'}
         </div>
 
         {extracted.length > 0 && (
-          <div className="flex flex-col gap-2 rounded-md bg-white/5 px-4 py-3">
+          <div className="flex flex-col gap-2 rounded-md bg-cream/5 px-4 py-3">
             <div className="flex items-center justify-between">
-              <span className="font-mono text-[10px] uppercase text-cream/50">추출된 할일</span>
+              <span className="font-sans text-sm uppercase text-cream/70">추출된 할일</span>
               <button
                 onClick={onDismissExtracted}
-                className="font-mono text-[10px] uppercase text-cream/40 transition hover:text-cream"
+                className="font-sans text-sm uppercase text-cream/65 transition hover:text-cream"
               >
                 닫기
               </button>
             </div>
             <ul className="flex flex-col gap-2">
               {extracted.map((t, i) => (
-                <li key={i} className="flex items-center gap-3 rounded-md bg-white/5 px-3 py-2">
-                  <span className="flex-1 font-mono text-sm">{t.title}</span>
+                <li key={i} className="flex items-center gap-3 rounded-md bg-cream/5 px-3 py-2">
+                  <span className="flex-1 font-sans text-sm">{t.title}</span>
                   {t.due_date && (
-                    <span className="font-mono text-[10px] uppercase text-cream/50">{formatDue(t.due_date, t.due_time)}</span>
+                    <span className="font-sans text-sm uppercase text-cream/70">{formatDue(t.due_date, t.due_time)}</span>
                   )}
-                  <span className="font-mono text-[10px] uppercase text-cream/50">{PRIORITY_LABEL[t.priority]}</span>
+                  <span className="font-sans text-sm uppercase text-cream/70">{PRIORITY_LABEL[t.priority]}</span>
                   <button
                     onClick={() => onAddExtracted?.(t)}
                     disabled={addingExtracted}
-                    className="rounded-md border border-white/30 px-3 py-1 font-grotesk text-[10px] uppercase text-cream transition hover:bg-white/10 disabled:cursor-wait disabled:opacity-50"
+                    className="rounded-md border border-cream/30 px-3 py-1 font-grotesk text-sm uppercase text-cream transition hover:bg-cream/10 disabled:cursor-wait disabled:opacity-50"
                   >
                     할일에 추가
                   </button>
@@ -233,7 +233,7 @@ export function TodoSection({
 
         {loading && (
           <div aria-label="할 일 불러오는 중" className="flex animate-pulse flex-col gap-2">
-            {[0, 1, 2].map((item) => <div key={item} className="h-9 rounded-md bg-white/10" />)}
+            {[0, 1, 2].map((item) => <div key={item} className="h-9 rounded-md bg-cream/10" />)}
           </div>
         )}
         {!loading && <ul className="flex flex-col gap-2">
@@ -241,7 +241,7 @@ export function TodoSection({
             <li
               key={t.id}
               style={{ borderLeft: `3px solid ${PRIORITY_COLOR[t.priority]}` }}
-              className={`flex items-center gap-3 rounded-md bg-white/5 py-2 pl-3 pr-3 ${t.done ? 'opacity-50' : ''}`}
+              className={`flex items-center gap-3 rounded-md bg-cream/5 py-2 pl-3 pr-3 ${t.done ? 'opacity-50' : ''}`}
             >
               <input
                 type="checkbox"
@@ -254,18 +254,18 @@ export function TodoSection({
                 )}
                 className="h-4 w-4 accent-[#6FFF00]"
               />
-              <span className={`flex-1 font-mono text-sm ${t.done ? 'text-cream/40 line-through' : 'text-cream'}`}>
+              <span className={`flex-1 font-sans text-sm ${t.done ? 'text-cream/65 line-through' : 'text-cream'}`}>
                 {t.title}
               </span>
               {t.source_provider && (
-                <span className="rounded-full border border-white/15 px-2 py-0.5 font-mono text-[9px] uppercase text-cream/45">
+                <span className="rounded-full border border-cream/15 px-2 py-0.5 font-sans text-xs uppercase text-cream/65">
                   {PROVIDER_LABEL[t.source_provider]}
                 </span>
               )}
               {t.due_date && (
-                <span className="font-mono text-[10px] uppercase text-cream/50">{formatDue(t.due_date, t.due_time)}</span>
+                <span className="font-sans text-sm uppercase text-cream/70">{formatDue(t.due_date, t.due_time)}</span>
               )}
-              <span className="font-mono text-[10px] uppercase" style={{ color: PRIORITY_COLOR[t.priority] }}>
+              <span className="font-sans text-sm uppercase" style={{ color: PRIORITY_COLOR[t.priority] }}>
                 {PRIORITY_LABEL[t.priority]}
               </span>
               <button
@@ -277,14 +277,14 @@ export function TodoSection({
                   t.source_provider
                   && readOnlySourceKeys.has(`${t.source_provider}:${t.external_source_id}`),
                 )}
-                className="font-mono text-[10px] uppercase text-cream/40 transition hover:text-red-400 disabled:cursor-wait disabled:opacity-30"
+                className="font-sans text-sm uppercase text-cream/65 transition hover:text-red-700 dark:hover:text-red-400 disabled:cursor-wait disabled:opacity-30"
               >
                 삭제
               </button>
             </li>
           ))}
           {sorted.length === 0 && (
-            <li className="font-mono text-xs uppercase text-cream/40">할 일이 없습니다 — 큐비가 쉬는 중 🐾</li>
+            <li className="font-sans text-xs uppercase text-cream/65">할 일이 없습니다 — 큐비가 쉬는 중 🐾</li>
           )}
         </ul>}
       </div>

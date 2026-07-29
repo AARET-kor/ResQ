@@ -27,6 +27,7 @@ vi.mock('./pages/IntegrationsPage', () => ({ IntegrationsPage: () => <div>연동
 
 import App from './App'
 import type { Profile } from './lib/profile'
+import { ThemeProvider } from './theme/ThemeProvider'
 
 const fullProfile: Profile = {
   id: 'u1', hospital: 'A병원', specialty: '내과', pgy: 2, nickname: '길동',
@@ -40,6 +41,14 @@ function authed() {
   })
 }
 
+function renderApp() {
+  return render(
+    <ThemeProvider>
+      <App />
+    </ThemeProvider>,
+  )
+}
+
 describe('App gating', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -48,14 +57,14 @@ describe('App gating', () => {
 
   it('shows the login screen when there is no session', () => {
     useAuth.mockReturnValue({ session: null, loading: false, signIn: vi.fn(), signOut: vi.fn() })
-    render(<App />)
+    renderApp()
     expect(screen.getByRole('button', { name: /google/i })).toBeInTheDocument()
   })
 
   it('shows loading — NOT onboarding — while a signed-in user profile is still fetching', () => {
     authed()
     getProfile.mockReturnValue(new Promise(() => {})) // never resolves
-    render(<App />)
+    renderApp()
     expect(screen.getByText(/loading/i)).toBeInTheDocument()
     expect(screen.queryByText(/Welcome to ResQ/i)).not.toBeInTheDocument()
   })
@@ -63,14 +72,14 @@ describe('App gating', () => {
   it('shows onboarding when signed in with no profile row yet', async () => {
     authed()
     getProfile.mockResolvedValue(null)
-    render(<App />)
+    renderApp()
     await waitFor(() => expect(screen.getByText(/Welcome to ResQ/i)).toBeInTheDocument())
   })
 
   it('shows the hero dashboard when signed in with a complete profile', async () => {
     authed()
     getProfile.mockResolvedValue(fullProfile)
-    render(<App />)
+    renderApp()
     await waitFor(() => expect(screen.getByText(/길동/)).toBeInTheDocument())
     expect(screen.getByText('홈 요약')).toBeInTheDocument()
   })
@@ -79,8 +88,9 @@ describe('App gating', () => {
     window.history.replaceState({}, '', '/papers')
     authed()
     getProfile.mockResolvedValue(fullProfile)
-    render(<App />)
+    renderApp()
     await waitFor(() => expect(screen.getByText('논문 페이지')).toBeInTheDocument())
     expect(screen.getByRole('navigation', { name: '주요 페이지' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /모드로 전환/ })).toBeInTheDocument()
   })
 })

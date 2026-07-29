@@ -129,14 +129,14 @@ function SetupStep({
       <div className="relative flex justify-center">
         <span className={`z-10 flex h-8 w-8 items-center justify-center rounded-full border font-grotesk text-xs ${
           complete
-            ? 'border-neon bg-neon text-bg'
-            : 'border-white/20 bg-[#0A1128] text-cream/55'
+            ? 'border-accent bg-accent text-accentInk'
+            : 'border-line/70 bg-surface text-muted'
         }`}>
           {complete ? <Check size={15} strokeWidth={3} /> : number}
         </span>
         {number < 4 && (
           <span className={`absolute bottom-[-28px] top-8 w-px ${
-            complete ? 'bg-neon/40' : 'bg-white/10'
+            complete ? 'bg-neon/40' : 'bg-cream/10'
           }`} />
         )}
       </div>
@@ -144,12 +144,12 @@ function SetupStep({
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="font-grotesk text-base uppercase text-cream">{title}</h3>
           {complete && (
-            <span className="rounded-full bg-neon/10 px-2 py-0.5 font-mono text-[8px] text-neon">
+            <span className="rounded-full bg-neon/10 px-2 py-0.5 font-sans text-xs text-neon">
               완료
             </span>
           )}
         </div>
-        <p className="mt-1 max-w-2xl font-mono text-[10px] leading-relaxed text-cream/40">
+        <p className="mt-1 max-w-2xl font-sans text-sm leading-relaxed text-cream/65">
           {description}
         </p>
         {children && <div className="mt-3">{children}</div>}
@@ -172,10 +172,10 @@ function PrimaryButton({
   tone?: 'neon' | 'sky' | 'red' | 'violet'
 }) {
   const toneClass = {
-    neon: 'bg-neon text-bg',
-    sky: 'bg-sky-300 text-bg',
-    red: 'bg-red-300 text-bg',
-    violet: 'bg-violet-300 text-bg',
+    neon: 'bg-accent text-accentInk',
+    sky: 'bg-sky-300 text-[#07111f]',
+    red: 'bg-red-300 text-[#07111f]',
+    violet: 'bg-violet-300 text-[#07111f]',
   }[tone]
   return (
     <button
@@ -242,11 +242,11 @@ function OAuthSetup({
       >
         {connected ? (
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 font-mono text-[10px] text-cream/65">
+            <span className="rounded-lg border border-cream/10 bg-cream/5 px-3 py-2 font-sans text-sm text-cream/65">
               {connection?.account_email ?? connection?.account_label ?? `${label} 계정`}
             </span>
             {connection?.last_error && (
-              <span className="inline-flex items-center gap-1.5 rounded-lg bg-red-400/10 px-3 py-2 font-mono text-[9px] text-red-200">
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-red-400/10 px-3 py-2 font-sans text-xs text-red-700 dark:text-red-200">
                 <TriangleAlert size={12} />
                 {connection.last_error}
               </span>
@@ -263,7 +263,7 @@ function OAuthSetup({
           </PrimaryButton>
         ) : (
           <div className="rounded-xl border border-amber-300/20 bg-amber-300/[0.055] px-4 py-3">
-            <p className="font-mono text-[10px] leading-relaxed text-amber-100/70">
+            <p className="font-sans text-sm leading-relaxed text-amber-900/80 dark:text-amber-100/70">
               관리자 OAuth 설정이 아직 완료되지 않았습니다. 앱 설정에 {label} 클라이언트 키를 등록하면 이 버튼이 자동으로 활성화됩니다.
             </p>
           </div>
@@ -324,7 +324,7 @@ function OAuthSetup({
             >
               {syncedAt ? '지금 다시 동기화' : '첫 동기화 시작'}
             </PrimaryButton>
-            <span className="font-mono text-[9px] text-cream/40">
+            <span className="font-sans text-xs text-cream/65">
               마지막 완료: {formatSyncTime(syncedAt)}
             </span>
           </div>
@@ -379,7 +379,7 @@ function DeviceSetup({
         complete={inCorrectApp}
       >
         {inCorrectApp ? (
-          <span className="inline-flex items-center gap-2 rounded-xl bg-neon/10 px-3 py-2 font-mono text-[10px] text-neon">
+          <span className="inline-flex items-center gap-2 rounded-xl bg-neon/10 px-3 py-2 font-sans text-sm text-neon">
             <Smartphone size={14} />
             ResQ {apple ? 'iPhone' : 'Android'} 앱에서 실행 중
           </span>
@@ -390,9 +390,9 @@ function DeviceSetup({
               ['2', 'ResQ 로그인'],
               ['3', '연동 페이지에서 권한 허용'],
             ].map(([number, text]) => (
-              <div key={number} className="rounded-xl border border-white/10 bg-white/[0.035] p-3">
+              <div key={number} className="rounded-xl border border-cream/10 bg-cream/[0.035] p-3">
                 <span className="font-grotesk text-neon">{number}</span>
-                <p className="mt-2 font-mono text-[9px] leading-relaxed text-cream/50">{text}</p>
+                <p className="mt-2 font-sans text-xs leading-relaxed text-cream/70">{text}</p>
               </div>
             ))}
           </div>
@@ -455,7 +455,7 @@ function DeviceSetup({
             >
               {syncedAt ? '지금 다시 동기화' : '첫 동기화 시작'}
             </PrimaryButton>
-            <span className="font-mono text-[9px] text-cream/40">
+            <span className="font-sans text-xs text-cream/65">
               마지막 완료: {formatSyncTime(syncedAt)}
             </span>
           </div>
@@ -634,12 +634,12 @@ export function IntegrationGuide({
     if (guide === 'galaxy') {
       return (
         <div className="grid gap-5 xl:grid-cols-2">
-          <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-4 sm:p-5">
+          <div className="rounded-2xl border border-cream/10 bg-cream/[0.025] p-4 sm:p-5">
             <div className="mb-5 flex items-center gap-3">
-              <Smartphone size={19} className="text-sky-300" />
+              <Smartphone size={19} className="text-sky-700 dark:text-sky-300" />
               <div>
                 <h3 className="font-grotesk text-lg uppercase">Galaxy Calendar</h3>
-                <p className="font-mono text-[9px] text-cream/40">Android 시스템 캘린더 경로</p>
+                <p className="font-sans text-xs text-cream/65">Android 시스템 캘린더 경로</p>
               </div>
             </div>
             <DeviceSetup
@@ -660,10 +660,10 @@ export function IntegrationGuide({
           </div>
           <div className="rounded-2xl border border-sky-300/15 bg-sky-300/[0.035] p-4 sm:p-5">
             <div className="mb-5 flex items-center gap-3">
-              <ListChecks size={19} className="text-sky-300" />
+              <ListChecks size={19} className="text-sky-700 dark:text-sky-300" />
               <div>
                 <h3 className="font-grotesk text-lg uppercase">Samsung Reminder</h3>
-                <p className="font-mono text-[9px] text-cream/40">Microsoft To Do 공식 동기화 경로</p>
+                <p className="font-sans text-xs text-cream/65">Microsoft To Do 공식 동기화 경로</p>
               </div>
             </div>
             <ol className="flex flex-col gap-3">
@@ -673,10 +673,10 @@ export function IntegrationGuide({
                 'Microsoft To Do 목록 선택 후 동기화',
               ].map((text, index) => (
                 <li key={text} className="flex gap-3">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sky-300/15 font-grotesk text-[10px] text-sky-200">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sky-300/15 font-grotesk text-sm text-sky-700 dark:text-sky-200">
                     {index + 1}
                   </span>
-                  <p className="pt-1 font-mono text-[10px] leading-relaxed text-cream/55">{text}</p>
+                  <p className="pt-1 font-sans text-sm leading-relaxed text-cream/70">{text}</p>
                 </li>
               ))}
             </ol>
@@ -711,17 +711,17 @@ export function IntegrationGuide({
               text: '앱 비밀번호로 캘린더 서버와 양방향 연결합니다.',
             },
           ].map(({ Icon, title, text }) => (
-            <div key={title} className="rounded-xl border border-white/10 bg-black/15 p-4">
-              <Icon size={17} className="text-amber-200" />
+            <div key={title} className="rounded-xl border border-cream/10 bg-surfaceRaised/55 p-4">
+              <Icon size={17} className="text-amber-800 dark:text-amber-200" />
               <h3 className="mt-4 font-grotesk text-sm uppercase">{title}</h3>
-              <p className="mt-2 font-mono text-[9px] leading-relaxed text-cream/40">{text}</p>
+              <p className="mt-2 font-sans text-xs leading-relaxed text-cream/65">{text}</p>
             </div>
           ))}
         </div>
         <button
           type="button"
           onClick={onOpenAdvanced}
-          className="mt-5 inline-flex items-center gap-2 rounded-xl bg-amber-200 px-4 py-2.5 font-grotesk text-xs uppercase text-bg"
+          className="mt-5 inline-flex items-center gap-2 rounded-xl bg-amber-200 px-4 py-2.5 font-grotesk text-xs uppercase text-[#07111f]"
         >
           기타 연결 설정 열기 <Settings2 size={14} />
         </button>
@@ -733,10 +733,10 @@ export function IntegrationGuide({
     <div className="flex flex-col gap-6">
       {!online && (
         <div role="alert" className="flex items-start gap-3 rounded-2xl border border-amber-300/25 bg-amber-300/[0.07] p-4">
-          <WifiOff size={17} className="mt-0.5 shrink-0 text-amber-200" />
+          <WifiOff size={17} className="mt-0.5 shrink-0 text-amber-800 dark:text-amber-200" />
           <div>
-            <strong className="font-grotesk text-sm uppercase text-amber-100">인터넷 연결 없음</strong>
-            <p className="mt-1 font-mono text-[10px] leading-relaxed text-amber-100/60">
+            <strong className="font-grotesk text-sm uppercase text-amber-900 dark:text-amber-100">인터넷 연결 없음</strong>
+            <p className="mt-1 font-sans text-sm leading-relaxed text-amber-900/75 dark:text-amber-100/60">
               현재 화면의 선택 상태는 확인할 수 있지만, 계정 연결과 동기화는 네트워크가 복구된 뒤 진행됩니다.
             </p>
           </div>
@@ -757,12 +757,12 @@ export function IntegrationGuide({
           <LiquidGlass key={label} className="rounded-2xl">
             <div className="flex min-h-32 flex-col justify-between p-4">
               <div className="flex items-center justify-between">
-                <span className="font-mono text-[9px] uppercase text-cream/40">{label}</span>
+                <span className="font-sans text-xs uppercase text-cream/65">{label}</span>
                 <Icon size={15} className="text-neon" />
               </div>
               <div>
                 <strong className="font-grotesk text-3xl font-normal uppercase text-cream">{value}</strong>
-                <p className="mt-1 font-mono text-[9px] text-cream/35">{detail}</p>
+                <p className="mt-1 font-sans text-xs text-muted">{detail}</p>
               </div>
             </div>
           </LiquidGlass>
@@ -771,11 +771,11 @@ export function IntegrationGuide({
 
       <section aria-labelledby="integration-choice-title">
         <div className="mb-4">
-          <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-neon">Step 0</p>
+          <p className="font-sans text-xs uppercase tracking-[0.22em] text-neon">Step 0</p>
           <h2 id="integration-choice-title" className="mt-1 font-grotesk text-2xl uppercase sm:text-3xl">
             지금 쓰는 앱부터 고르세요
           </h2>
-          <p className="mt-2 font-mono text-[10px] leading-relaxed text-cream/45">
+          <p className="mt-2 font-sans text-sm leading-relaxed text-cream/65">
             선택하면 필요한 단계만 펼쳐집니다. 여러 서비스를 쓰면 하나씩 완료하면 됩니다.
           </p>
         </div>
@@ -790,8 +790,8 @@ export function IntegrationGuide({
                 onClick={() => setGuide(option.key)}
                 className={`rounded-2xl border p-3 text-left transition sm:p-4 ${
                   active
-                    ? 'border-white/30 bg-white/[0.08]'
-                    : 'border-white/10 bg-white/[0.025] hover:border-white/20'
+                    ? 'border-cream/30 bg-cream/[0.08]'
+                    : 'border-cream/10 bg-cream/[0.025] hover:border-cream/20'
                 }`}
               >
                 <span
@@ -801,7 +801,7 @@ export function IntegrationGuide({
                 <strong className="mt-4 block font-grotesk text-sm font-normal uppercase text-cream">
                   {option.label}
                 </strong>
-                <span className="mt-1 block font-mono text-[8px] leading-relaxed text-cream/35">
+                <span className="mt-1 block font-sans text-xs leading-relaxed text-muted">
                   {option.description}
                 </span>
               </button>
@@ -812,18 +812,18 @@ export function IntegrationGuide({
 
       <LiquidGlass className="rounded-[24px]">
         <section className="p-5 sm:p-7" aria-label={`${guide} 단계별 연결 안내`}>
-          <div className="mb-7 flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-5">
+          <div className="mb-7 flex flex-wrap items-center justify-between gap-3 border-b border-cream/10 pb-5">
             <div>
-              <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-cream/35">
+              <p className="font-sans text-xs uppercase tracking-[0.2em] text-muted">
                 Guided setup
               </p>
               <h2 className="mt-1 font-grotesk text-2xl uppercase">
                 {GUIDE_OPTIONS.find((option) => option.key === guide)?.label} 연결 가이드
               </h2>
             </div>
-            <div className="flex items-center gap-2 rounded-full border border-white/10 px-3 py-2">
+            <div className="flex items-center gap-2 rounded-full border border-cream/10 px-3 py-2">
               <ShieldCheck size={13} className="text-neon" />
-              <span className="font-mono text-[8px] text-cream/40">제목·시간·완료 상태만 동기화</span>
+              <span className="font-sans text-xs text-cream/65">제목·시간·완료 상태만 동기화</span>
             </div>
           </div>
           {renderGuide()}
@@ -846,7 +846,7 @@ export function IntegrationGuide({
                 {syncing ? '동기화 진행 중' : '최근 동기화 결과'}
               </strong>
               {syncMessage && (
-                <p className="mt-1 font-mono text-[10px] leading-relaxed text-cream/55">
+                <p className="mt-1 font-sans text-sm leading-relaxed text-cream/70">
                   {syncMessage}
                 </p>
               )}
@@ -858,8 +858,8 @@ export function IntegrationGuide({
                     ['삭제 반영', lastSyncSummary.result.deletedEvents + lastSyncSummary.result.deletedTasks],
                     ['선택 목록', lastSyncSummary.result.sources],
                   ].map(([label, value]) => (
-                    <div key={label} className="rounded-xl bg-black/15 p-3">
-                      <span className="font-mono text-[8px] text-cream/35">{label}</span>
+                    <div key={label} className="rounded-xl bg-surfaceRaised/55 p-3">
+                      <span className="font-sans text-xs text-muted">{label}</span>
                       <strong className="mt-1 block font-grotesk text-xl font-normal">{value}</strong>
                     </div>
                   ))}
@@ -873,9 +873,9 @@ export function IntegrationGuide({
       <section className="rounded-[24px] border border-violet-300/15 bg-violet-300/[0.035] p-5 sm:p-7">
         <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr] lg:items-center">
           <div>
-            <div className="flex items-center gap-2 text-violet-200">
+            <div className="flex items-center gap-2 text-violet-700 dark:text-violet-200">
               <MonitorSmartphone size={17} />
-              <span className="font-mono text-[9px] uppercase tracking-[0.2em]">Native apps</span>
+              <span className="font-sans text-xs uppercase tracking-[0.2em]">Native apps</span>
             </div>
             <h2 className="mt-4 font-grotesk text-2xl uppercase sm:text-3xl">
               ResQ 앱 버전도<br />준비되어 있습니다
@@ -902,15 +902,15 @@ export function IntegrationGuide({
                 done: false,
               },
             ].map(({ Icon, title, detail, done }) => (
-              <div key={title} className="rounded-xl border border-white/10 bg-black/15 p-3">
-                <Icon size={15} className={done ? 'text-neon' : 'text-violet-200'} />
+              <div key={title} className="rounded-xl border border-cream/10 bg-surfaceRaised/55 p-3">
+                <Icon size={15} className={done ? 'text-neon' : 'text-violet-700 dark:text-violet-200'} />
                 <strong className="mt-3 block font-grotesk text-xs font-normal uppercase">{title}</strong>
-                <p className="mt-1 font-mono text-[8px] leading-relaxed text-cream/40">{detail}</p>
+                <p className="mt-1 font-sans text-xs leading-relaxed text-cream/65">{detail}</p>
               </div>
             ))}
           </div>
         </div>
-        <p className="mt-5 flex items-start gap-2 border-t border-white/10 pt-4 font-mono text-[9px] leading-relaxed text-cream/40">
+        <p className="mt-5 flex items-start gap-2 border-t border-cream/10 pt-4 font-sans text-xs leading-relaxed text-cream/65">
           <Circle size={8} className="mt-1 shrink-0 fill-current" />
           앱스토어 파일 생성에는 Apple Developer·Google Play 개발자 계정과 각 플랫폼 서명이 필요합니다. 계정이 준비되면 같은 코드로 내부 테스트 배포가 가능합니다.
         </p>
@@ -919,7 +919,7 @@ export function IntegrationGuide({
       <button
         type="button"
         onClick={onOpenAdvanced}
-        className="mx-auto inline-flex items-center gap-2 font-mono text-[10px] text-cream/45 underline decoration-white/20 underline-offset-4 transition hover:text-cream"
+        className="mx-auto inline-flex items-center gap-2 font-sans text-sm text-cream/65 underline decoration-white/20 underline-offset-4 transition hover:text-cream"
       >
         ICS·CalDAV·Gmail·연결 해제 등 세부 설정 열기
         <ExternalLink size={12} />

@@ -7,13 +7,7 @@ export function TextureOverlay() {
   return (
     <div
       aria-hidden
-      className="pointer-events-none fixed inset-0 z-50"
-      style={{
-        backgroundImage: 'url(/texture.png)',
-        backgroundSize: 'cover',
-        mixBlendMode: 'lighten',
-        opacity: 0.6,
-      }}
+      className="resq-texture-overlay pointer-events-none fixed inset-0 z-50"
     />
   )
 }

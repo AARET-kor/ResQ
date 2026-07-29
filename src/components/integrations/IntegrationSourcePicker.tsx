@@ -51,14 +51,14 @@ function SourceGroup({
   if (!sources.length) return null
 
   return (
-    <fieldset className="rounded-2xl border border-white/10 bg-black/15 p-3 sm:p-4">
+    <fieldset className="rounded-2xl border border-line/60 bg-surfaceRaised/45 p-3 sm:p-4">
       <legend className="px-2">
         <span className="inline-flex items-center gap-2 font-grotesk text-sm uppercase text-cream">
           <Icon size={15} className="text-neon" />
           {title}
         </span>
       </legend>
-      <p className="mb-3 px-1 font-mono text-[10px] leading-relaxed text-cream/40">
+      <p className="mb-3 px-1 font-sans text-sm leading-relaxed text-cream/65">
         {description}
       </p>
       <div className="flex flex-col gap-2">
@@ -70,7 +70,7 @@ function SourceGroup({
               className={`rounded-xl border p-3 transition ${
                 source.selected
                   ? 'border-neon/35 bg-neon/[0.055]'
-                  : 'border-white/10 bg-white/[0.025]'
+                  : 'border-cream/10 bg-cream/[0.025]'
               }`}
             >
               <div className="flex items-start gap-3">
@@ -83,8 +83,8 @@ function SourceGroup({
                   onClick={() => onToggle(source)}
                   className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition disabled:cursor-wait disabled:opacity-40 ${
                     source.selected
-                      ? 'border-neon bg-neon text-bg'
-                      : 'border-white/25 text-transparent hover:border-neon/70'
+                      ? 'border-accent bg-accent text-accentInk'
+                      : 'border-cream/25 text-transparent hover:border-neon/70'
                   }`}
                 >
                   <Check size={14} strokeWidth={3} />
@@ -98,23 +98,23 @@ function SourceGroup({
                         style={{ backgroundColor: source.color }}
                       />
                     )}
-                    <strong className="min-w-0 truncate font-mono text-xs font-normal text-cream/85">
+                    <strong className="min-w-0 truncate font-sans text-xs font-normal text-cream/85">
                       {source.name}
                     </strong>
                     {source.is_default && (
-                      <span className="shrink-0 rounded-full border border-white/15 px-2 py-0.5 font-mono text-[8px] text-cream/40">
+                      <span className="shrink-0 rounded-full border border-cream/15 px-2 py-0.5 font-sans text-xs text-cream/65">
                         기본
                       </span>
                     )}
                   </div>
-                  <p className="mt-1 font-mono text-[9px] text-cream/35">
+                  <p className="mt-1 font-sans text-xs text-muted">
                     {syncTime(source.last_synced_at)}
                   </p>
                 </div>
               </div>
 
               {source.selected && (
-                <div className="mt-3 border-t border-white/10 pt-3">
+                <div className="mt-3 border-t border-cream/10 pt-3">
                   {source.can_write ? (
                     <div className="grid gap-2 sm:grid-cols-2">
                       {([
@@ -139,18 +139,18 @@ function SourceGroup({
                           className={`flex items-start gap-2 rounded-lg border p-2 text-left transition disabled:cursor-wait disabled:opacity-40 ${
                             source.sync_mode === mode
                               ? 'border-neon/45 bg-neon/10'
-                              : 'border-white/10 hover:border-white/25'
+                              : 'border-cream/10 hover:border-cream/25'
                           }`}
                         >
                           <ModeIcon
                             size={14}
-                            className={source.sync_mode === mode ? 'text-neon' : 'text-cream/35'}
+                            className={source.sync_mode === mode ? 'text-neon' : 'text-muted'}
                           />
                           <span>
-                            <span className="block font-grotesk text-[10px] uppercase text-cream/80">
+                            <span className="block font-grotesk text-sm uppercase text-cream/80">
                               {label}
                             </span>
-                            <span className="mt-0.5 block font-mono text-[8px] leading-relaxed text-cream/35">
+                            <span className="mt-0.5 block font-sans text-xs leading-relaxed text-muted">
                               {detail}
                             </span>
                           </span>
@@ -158,9 +158,9 @@ function SourceGroup({
                       ))}
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2">
-                      <LockKeyhole size={13} className="text-cream/35" />
-                      <span className="font-mono text-[9px] text-cream/45">
+                    <div className="flex items-center gap-2 rounded-lg border border-cream/10 px-3 py-2">
+                      <LockKeyhole size={13} className="text-muted" />
+                      <span className="font-sans text-xs text-cream/65">
                         이 목록은 원본 서비스가 읽기 전용으로 제공합니다.
                       </span>
                     </div>
@@ -170,8 +170,8 @@ function SourceGroup({
 
               {source.last_error && (
                 <div className="mt-2 flex items-start gap-2 rounded-lg bg-red-400/10 px-3 py-2">
-                  <TriangleAlert size={13} className="mt-0.5 shrink-0 text-red-300" />
-                  <span className="font-mono text-[9px] leading-relaxed text-red-200/80">
+                  <TriangleAlert size={13} className="mt-0.5 shrink-0 text-red-700 dark:text-red-300" />
+                  <span className="font-sans text-xs leading-relaxed text-red-700/90 dark:text-red-200/80">
                     {source.last_error}
                   </span>
                 </div>
@@ -203,8 +203,8 @@ export function IntegrationSourcePicker({
 
   if (!sources.length) {
     return (
-      <div className="rounded-2xl border border-dashed border-white/15 px-4 py-5 text-center">
-        <p className="font-mono text-[10px] leading-relaxed text-cream/45">
+      <div className="rounded-2xl border border-dashed border-cream/15 px-4 py-5 text-center">
+        <p className="font-sans text-sm leading-relaxed text-cream/65">
           아직 가져올 목록을 찾지 못했습니다.<br />
           위 단계의 ‘목록 찾기’를 눌러주세요.
         </p>
@@ -215,11 +215,11 @@ export function IntegrationSourcePicker({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
-        <p className="font-mono text-[10px] text-cream/45">
+        <p className="font-sans text-sm text-cream/65">
           체크한 목록만 ResQ에 표시됩니다.
         </p>
-        <span className={`rounded-full px-2.5 py-1 font-mono text-[9px] ${
-          selected ? 'bg-neon/10 text-neon' : 'bg-amber-300/10 text-amber-200'
+        <span className={`rounded-full px-2.5 py-1 font-sans text-xs ${
+          selected ? 'bg-neon/10 text-neon' : 'bg-amber-300/10 text-amber-800 dark:text-amber-200'
         }`}>
           {selected ? `${selected}개 선택` : '선택 필요'}
         </span>

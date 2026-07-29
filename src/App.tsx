@@ -20,7 +20,7 @@ const IntegrationsPage = lazy(() => import('./pages/IntegrationsPage').then(({ I
 function PageLoading() {
   return (
     <div
-      className="flex min-h-[55vh] items-center justify-center font-mono text-xs uppercase tracking-[0.24em] text-cream/50"
+      className="flex min-h-[55vh] items-center justify-center font-sans text-sm uppercase tracking-[0.24em] text-muted"
       role="status"
     >
       workspace loading…
@@ -80,7 +80,7 @@ export default function App() {
   const mascot = useMascot(profile, setProfile)
 
   if (loading || (userId && !profileLoaded)) {
-    return <div className="flex min-h-screen items-center justify-center font-mono text-sm uppercase text-cream/60">loading…</div>
+    return <div className="flex min-h-screen items-center justify-center font-sans text-sm uppercase text-muted">loading…</div>
   }
   if (!session) return (
     <>

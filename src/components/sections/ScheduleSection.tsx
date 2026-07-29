@@ -38,14 +38,14 @@ function MonthPicker({
   return (
     <div
       aria-label="월 선택 패널"
-      className="absolute right-0 top-full z-10 mt-2 flex w-[260px] flex-col gap-3 rounded-2xl border border-white/15 bg-[#0B1433] p-4 shadow-xl"
+      className="absolute right-0 top-full z-10 mt-2 flex w-[260px] flex-col gap-3 rounded-2xl border border-line bg-surface p-4 shadow-xl"
     >
       <div className="flex items-center justify-between">
         <button
           aria-label="이전 해"
           type="button"
           onClick={() => setPickerYear((y) => y - 1)}
-          className="flex h-7 w-7 items-center justify-center rounded-full border border-white/30 transition hover:bg-white/10"
+          className="flex h-7 w-7 items-center justify-center rounded-full border border-cream/30 transition hover:bg-cream/10"
         >
           <ArrowLeft size={12} />
         </button>
@@ -54,7 +54,7 @@ function MonthPicker({
           aria-label="다음 해"
           type="button"
           onClick={() => setPickerYear((y) => y + 1)}
-          className="flex h-7 w-7 items-center justify-center rounded-full border border-white/30 transition hover:bg-white/10"
+          className="flex h-7 w-7 items-center justify-center rounded-full border border-cream/30 transition hover:bg-cream/10"
         >
           <ArrowRight size={12} />
         </button>
@@ -70,8 +70,8 @@ function MonthPicker({
                 onSelect(pickerYear, m0)
                 onClose()
               }}
-              className={`rounded-md px-2 py-1.5 font-mono text-[11px] uppercase transition ${
-                isCurrent ? 'bg-neon text-bg' : 'bg-white/5 text-cream/70 hover:bg-white/10'
+              className={`rounded-md px-2 py-1.5 font-sans text-sm uppercase transition ${
+                isCurrent ? 'bg-accent text-accentInk' : 'bg-cream/5 text-cream/70 hover:bg-cream/10'
               }`}
             >
               {label}
@@ -133,8 +133,8 @@ export function ScheduleSection({
   }
 
   return (
-    <LiquidGlass className="rounded-2xl border border-white/15 bg-[#0B1433]">
-      <div className="flex flex-col gap-4 p-6 text-[13px]">
+    <LiquidGlass className="rounded-2xl">
+      <div className="flex flex-col gap-4 p-6 text-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="h-[6px] w-[6px] bg-neon" />
@@ -142,19 +142,19 @@ export function ScheduleSection({
           </div>
           <div className="relative flex items-center gap-3">
             <button aria-label="이전 달" onClick={prev}
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-white/30 transition hover:bg-white/10">
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-cream/30 transition hover:bg-cream/10">
               <ArrowLeft size={14} />
             </button>
             <button
               type="button"
               aria-label="월 선택"
               onClick={() => setPickerOpen((v) => !v)}
-              className="rounded-md px-2 py-1 font-grotesk text-sm uppercase transition hover:bg-white/10"
+              className="rounded-md px-2 py-1 font-grotesk text-sm uppercase transition hover:bg-cream/10"
             >
               {year}년 {month0 + 1}월
             </button>
             <button aria-label="다음 달" onClick={next}
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-white/30 transition hover:bg-white/10">
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-cream/30 transition hover:bg-cream/10">
               <ArrowRight size={14} />
             </button>
             {pickerOpen && (
@@ -169,11 +169,11 @@ export function ScheduleSection({
         </div>
 
         {/* Month grid */}
-        <div className="grid grid-cols-7 gap-1 font-mono text-[10px] uppercase text-cream/50">
+        <div className="grid grid-cols-7 gap-1 font-sans text-sm uppercase text-cream/70">
           {['일', '월', '화', '수', '목', '금', '토'].map((d) => (
             <div
               key={d}
-              className={`px-1 py-0.5 text-center ${d === '일' ? 'text-red-300' : d === '토' ? 'text-sky-300' : ''}`}
+              className={`px-1 py-0.5 text-center ${d === '일' ? 'text-red-700 dark:text-red-300' : d === '토' ? 'text-sky-700 dark:text-sky-300' : ''}`}
             >
               {d}
             </div>
@@ -185,7 +185,7 @@ export function ScheduleSection({
             const isToday = c.date === today
             return (
               <div key={c.date}
-                className={`min-h-[64px] rounded-lg p-1 font-mono text-[11px] ${c.inMonth ? 'bg-white/[0.07] text-cream' : 'bg-transparent text-cream/25'} ${isToday ? 'ring-2 ring-neon' : ''}`}>
+                className={`min-h-[64px] rounded-lg p-1 font-sans text-sm ${c.inMonth ? 'bg-cream/[0.07] text-cream' : 'bg-transparent text-muted'} ${isToday ? 'ring-2 ring-neon' : ''}`}>
                 <div>{Number(c.date.slice(8, 10))}</div>
                 <div className="mt-0.5 flex flex-wrap items-center gap-0.5">
                   {dayEvents.slice(0, MAX_DOTS).map((e) => (
@@ -194,7 +194,7 @@ export function ScheduleSection({
                       style={{ background: KIND_DOT[e.kind] }} />
                   ))}
                   {dayEvents.length > MAX_DOTS && (
-                    <span className="font-mono text-[9px] text-cream/50">+{dayEvents.length - MAX_DOTS}</span>
+                    <span className="font-sans text-xs text-cream/70">+{dayEvents.length - MAX_DOTS}</span>
                   )}
                 </div>
               </div>
@@ -205,22 +205,22 @@ export function ScheduleSection({
         {/* Month event list */}
         {loading && (
           <div aria-label="일정 불러오는 중" className="flex animate-pulse flex-col gap-2">
-            {[0, 1].map((item) => <div key={item} className="h-9 rounded-md bg-white/10" />)}
+            {[0, 1].map((item) => <div key={item} className="h-9 rounded-md bg-cream/10" />)}
           </div>
         )}
         {!loading && <ul className="flex flex-col gap-2">
           {events.map((e) => (
-            <li key={e.id} className="flex items-center gap-3 rounded-md bg-white/[0.07] px-3 py-2">
-              <span className="font-mono text-[10px] uppercase text-cream/60">
+            <li key={e.id} className="flex items-center gap-3 rounded-md bg-cream/[0.07] px-3 py-2">
+              <span className="font-sans text-sm uppercase text-cream/75">
                 {e.starts_at.slice(5, 10)} {e.starts_at.slice(11, 16)}
               </span>
-              <span className="flex-1 font-mono text-sm">{e.title}</span>
+              <span className="flex-1 font-sans text-sm">{e.title}</span>
               {e.source_provider && (
-                <span className="rounded-full border border-white/15 px-2 py-0.5 font-mono text-[9px] uppercase text-cream/45">
+                <span className="rounded-full border border-cream/15 px-2 py-0.5 font-sans text-xs uppercase text-cream/65">
                   {PROVIDER_LABEL[e.source_provider]}
                 </span>
               )}
-              <span className="font-mono text-[10px] uppercase" style={{ color: KIND_DOT[e.kind] }}>
+              <span className="font-sans text-sm uppercase" style={{ color: KIND_DOT[e.kind] }}>
                 {EVENT_KINDS[e.kind]}
               </span>
               <button
@@ -233,44 +233,44 @@ export function ScheduleSection({
                   e.source_provider
                   && readOnlySourceKeys.has(`${e.source_provider}:${e.external_source_id}`),
                 )}
-                className="font-mono text-[10px] uppercase text-cream/40 transition hover:text-red-400 disabled:cursor-wait disabled:opacity-30">
+                className="font-sans text-sm uppercase text-cream/65 transition hover:text-red-700 dark:hover:text-red-400 disabled:cursor-wait disabled:opacity-30">
                 삭제
               </button>
             </li>
           ))}
           {events.length === 0 && (
-            <li className="font-mono text-xs uppercase text-cream/40">이 달의 일정이 없습니다</li>
+            <li className="font-sans text-xs uppercase text-cream/65">이 달의 일정이 없습니다</li>
           )}
         </ul>}
 
         {/* Add form */}
         <form onSubmit={submit} className="flex flex-wrap items-end gap-2">
-          <label className="flex flex-1 min-w-[160px] flex-col gap-1 font-mono text-[10px] uppercase text-cream/60">
+          <label className="flex flex-1 min-w-[160px] flex-col gap-1 font-sans text-sm uppercase text-cream/75">
             일정 제목
             <input aria-label="일정 제목" value={title} onChange={(e) => setTitle(e.target.value)}
-              className="rounded-md bg-white/5 px-3 py-2 font-mono text-sm text-cream outline-none focus:ring-1 focus:ring-neon" />
+              className="rounded-md bg-cream/5 px-3 py-2 font-sans text-sm text-cream outline-none focus:ring-1 focus:ring-neon" />
           </label>
-          <label className="flex flex-col gap-1 font-mono text-[10px] uppercase text-cream/60">
+          <label className="flex flex-col gap-1 font-sans text-sm uppercase text-cream/75">
             날짜
             <input aria-label="날짜" type="date" value={date} onChange={(e) => setDate(e.target.value)}
-              className="rounded-md bg-white/5 px-3 py-2 font-mono text-sm text-cream outline-none focus:ring-1 focus:ring-neon" />
+              className="rounded-md bg-cream/5 px-3 py-2 font-sans text-sm text-cream outline-none focus:ring-1 focus:ring-neon" />
           </label>
-          <label className="flex flex-col gap-1 font-mono text-[10px] uppercase text-cream/60">
+          <label className="flex flex-col gap-1 font-sans text-sm uppercase text-cream/75">
             시간
             <input aria-label="시간" type="time" value={time} onChange={(e) => setTime(e.target.value)}
-              className="rounded-md bg-white/5 px-3 py-2 font-mono text-sm text-cream outline-none focus:ring-1 focus:ring-neon" />
+              className="rounded-md bg-cream/5 px-3 py-2 font-sans text-sm text-cream outline-none focus:ring-1 focus:ring-neon" />
           </label>
-          <label className="flex flex-col gap-1 font-mono text-[10px] uppercase text-cream/60">
+          <label className="flex flex-col gap-1 font-sans text-sm uppercase text-cream/75">
             종류
             <select aria-label="종류" value={kind} onChange={(e) => setKind(e.target.value as EventKind)}
-              className="rounded-md bg-white/5 px-3 py-2 font-mono text-sm text-cream outline-none focus:ring-1 focus:ring-neon [&>option]:bg-bg">
+              className="rounded-md bg-cream/5 px-3 py-2 font-sans text-sm text-cream outline-none focus:ring-1 focus:ring-neon [&>option]:bg-bg">
               {Object.entries(EVENT_KINDS).map(([k, label]) => (
                 <option key={k} value={k}>{label}</option>
               ))}
             </select>
           </label>
           <button type="submit" disabled={adding}
-            className="rounded-md bg-neon px-4 py-2 font-grotesk text-xs uppercase text-bg transition hover:opacity-90 disabled:cursor-wait disabled:opacity-50">
+            className="rounded-md bg-accent px-4 py-2 font-grotesk text-xs uppercase text-accentInk transition hover:opacity-90 disabled:cursor-wait disabled:opacity-50">
             {adding ? '추가 중…' : '일정 추가'}
           </button>
         </form>

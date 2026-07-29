@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { fetchEpmcFullText } from '../../lib/europepmc'
 import {
   getAnalysis,
@@ -32,6 +32,8 @@ function analysisKindOf(report: PaperAnalysis): AnalysisKind {
 export function usePaperAnalysis({ profile, onProfileChange }: UsePaperAnalysisOptions) {
   const { notify } = useNotifications()
   const [reports, setReports] = useState<PaperAnalysis[]>([])
+  const [reportsLoading, setReportsLoading] = useState(true)
+  const [reportsError, setReportsError] = useState<string | null>(null)
   const [selected, setSelected] = useState<Paper | null>(null)
   const [selectedTitle, setSelectedTitle] = useState<string | null>(null)
   const [analysis, setAnalysis] = useState<string | null>(null)
@@ -47,33 +49,39 @@ export function usePaperAnalysis({ profile, onProfileChange }: UsePaperAnalysisO
   const analysisInFlight = useRef(false)
   const ideationInFlight = useRef(false)
   const relatedRequestId = useRef(0)
+  const reportsRequestId = useRef(0)
   const userId = profile.id
 
-  useEffect(() => {
-    let active = true
-    listMyReports(supabase, userId)
-      .then((items) => { if (active) setReports(items) })
-      .catch((loadError) => {
-        console.error(loadError)
-        if (active) notify({
-          message: requestErrorMessage(loadError, '저장된 논문 리포트를 불러오지 못했습니다.'),
-          tone: 'error',
-        })
+  const refreshReports = useCallback(async () => {
+    const requestId = ++reportsRequestId.current
+    setReportsLoading(true)
+    setReportsError(null)
+    try {
+      const items = await listMyReports(supabase, userId)
+      if (requestId === reportsRequestId.current) setReports(items)
+    } catch (loadError) {
+      console.error(loadError)
+      if (requestId !== reportsRequestId.current) return
+      const failure = requestErrorMessage(
+        loadError,
+        '저장된 논문 리포트를 불러오지 못했습니다.',
+      )
+      setReportsError(failure)
+      notify({
+        message: failure,
+        tone: 'error',
       })
-    return () => { active = false }
+    } finally {
+      if (requestId === reportsRequestId.current) setReportsLoading(false)
+    }
   }, [notify, userId])
 
-  const refreshReports = () => {
-    listMyReports(supabase, userId)
-      .then(setReports)
-      .catch((loadError) => {
-        console.error(loadError)
-        notify({
-          message: requestErrorMessage(loadError, '저장된 논문 리포트를 새로고침하지 못했습니다.'),
-          tone: 'warning',
-        })
-      })
-  }
+  useEffect(() => {
+    void refreshReports()
+    return () => {
+      reportsRequestId.current += 1
+    }
+  }, [refreshReports])
 
   const resetForPaper = (paper: Paper) => {
     relatedRequestId.current += 1
@@ -177,7 +185,7 @@ export function usePaperAnalysis({ profile, onProfileChange }: UsePaperAnalysisO
       setAnalysis(text)
       setAnalysisKind(kind)
       onProfileChange(await recordXpEvent(supabase, profile, 'read_paper', paper.pmid))
-      refreshReports()
+      void refreshReports()
     } catch (analysisError) {
       console.error(analysisError)
       const failure = requestErrorMessage(
@@ -230,7 +238,7 @@ export function usePaperAnalysis({ profile, onProfileChange }: UsePaperAnalysisO
       setAnalysis(text)
       setAnalysisKind('report')
       onProfileChange(await recordXpEvent(supabase, profile, 'read_paper', paper.pmid))
-      refreshReports()
+      void refreshReports()
     } catch (analysisError) {
       console.error(analysisError)
       const failure = requestErrorMessage(
@@ -250,15 +258,15 @@ export function usePaperAnalysis({ profile, onProfileChange }: UsePaperAnalysisO
   }
 
   const openReport = (report: PaperAnalysis) => {
+    relatedRequestId.current += 1
+    const isPubmedId = /^\d+$/.test(report.pmid)
     const paper: Paper = {
       pmid: report.pmid,
       title: report.title,
       journal: report.journal ?? '',
       year: report.year ?? '',
       abstract: report.abstract ?? '',
-      url: report.pmid.startsWith('pdf-')
-        ? ''
-        : `https://pubmed.ncbi.nlm.nih.gov/${report.pmid}/`,
+      url: isPubmedId ? `https://pubmed.ncbi.nlm.nih.gov/${report.pmid}/` : '',
       pmcid: null,
     }
     setSelected(paper)
@@ -267,10 +275,12 @@ export function usePaperAnalysis({ profile, onProfileChange }: UsePaperAnalysisO
     setAnalysisKind(analysisKindOf(report))
     setError(null)
     setRelatedPapers([])
+    setRelatedLoading(false)
     setRelatedError(null)
     setIdeation(null)
+    setIdeationLoading(false)
     setIdeationError(null)
-    void loadRelated(paper)
+    if (!report.pmid.startsWith('pdf-')) void loadRelated(paper)
   }
 
   const generateIdeation = async () => {
@@ -319,6 +329,8 @@ export function usePaperAnalysis({ profile, onProfileChange }: UsePaperAnalysisO
 
   return {
     reports,
+    reportsLoading,
+    reportsError,
     selected,
     selectedTitle,
     analysis,
@@ -334,6 +346,7 @@ export function usePaperAnalysis({ profile, onProfileChange }: UsePaperAnalysisO
     open,
     analyze,
     uploadPdf,
+    refreshReports,
     openReport,
     generateIdeation,
     close,

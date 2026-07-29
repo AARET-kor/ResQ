@@ -98,11 +98,11 @@ export function IntegrationsPage({
         id="advanced-integrations"
         open={advancedOpen}
         onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}
-        className="mt-10 scroll-mt-24 rounded-[24px] border border-white/10 bg-white/[0.025] p-3 sm:p-4"
+        className="mt-10 scroll-mt-24 rounded-[24px] border border-line/70 bg-surface p-3 shadow-sm sm:p-4"
       >
-        <summary className="cursor-pointer rounded-xl px-3 py-3 font-grotesk text-sm uppercase text-cream/65 transition hover:bg-white/5 hover:text-cream">
+        <summary className="cursor-pointer rounded-xl px-3 py-3 font-grotesk text-sm uppercase text-cream/65 transition hover:bg-cream/5 hover:text-cream">
           세부 설정 · 복구 도구
-          <span className="ml-3 font-mono text-[9px] normal-case text-cream/30">
+          <span className="ml-3 font-sans text-xs normal-case text-muted">
             ICS · CalDAV · Gmail · 연결 해제
           </span>
         </summary>

@@ -35,7 +35,7 @@ export function PaperShelf({
     <div className="flex flex-col gap-3">
       <h3 className="font-serif text-xl font-black tracking-tight sm:text-2xl">{title}</h3>
       {papers.length === 0 ? (
-        <p className="font-mono text-xs uppercase text-cream/40">{emptyNote}</p>
+        <p className="font-sans text-xs text-muted">{emptyNote}</p>
       ) : (
         <div className="shelf-scroll">
           {papers.map((p) => (
@@ -49,50 +49,50 @@ export function PaperShelf({
             >
               {/* generated cover */}
               <div
-                className="flex aspect-[3/4] flex-col justify-between overflow-hidden rounded-xl p-3 shadow-lg ring-1 ring-white/10 transition group-hover:ring-neon/50"
+                className="flex aspect-[3/4] flex-col justify-between overflow-hidden rounded-xl p-3 shadow-lg ring-1 ring-white/10 transition group-hover:ring-[#6FFF00]/50"
                 style={{ background: `linear-gradient(168deg, ${coverColor(p.evidenceLevel)} 0%, #0A1030 125%)` }}
               >
                 <div className="flex items-start justify-between gap-1">
-                  <span className="line-clamp-2 font-mono text-[9px] uppercase leading-tight text-white/80">
+                  <span className="line-clamp-2 font-sans text-xs uppercase leading-tight text-white/80">
                     {p.journal || '기타'}
                   </span>
                   <span className="flex shrink-0 flex-col items-end gap-1">
                     {(p.isOpenAccess || p.pmcid) && (
-                      <span className="rounded bg-black/30 px-1.5 py-0.5 font-mono text-[9px] uppercase text-neon">OA 원문</span>
+                      <span className="rounded bg-black/30 px-1.5 py-0.5 font-sans text-xs uppercase text-[#6FFF00]">OA 원문</span>
                     )}
                     {evidenceLabel(p.evidenceLevel) && (
-                      <span className="rounded bg-black/30 px-1.5 py-0.5 font-mono text-[8px] text-white/90">
+                      <span className="rounded bg-black/30 px-1.5 py-0.5 font-sans text-xs text-white/90">
                         {evidenceLabel(p.evidenceLevel)}
                       </span>
                     )}
                   </span>
                 </div>
-                <p className="line-clamp-4 font-serif text-[15px] font-bold leading-snug text-white">
+                <p className="line-clamp-4 font-serif text-base font-bold leading-snug text-white">
                   {p.title}
                 </p>
                 <div className="flex flex-col gap-1">
                   <div className="flex items-end justify-between">
-                    <span className="font-mono text-[9px] text-white/70">{p.date ?? p.year}</span>
+                    <span className="font-sans text-xs text-white/70">{p.date ?? p.year}</span>
                     {(p.citedByCount ?? 0) > 0 && (
-                      <span className="font-mono text-[9px] text-white/80">피인용 {p.citedByCount}</span>
+                      <span className="font-sans text-xs text-white/80">피인용 {p.citedByCount}</span>
                     )}
                   </div>
                   {jifForJournal(p.journal) != null && (
-                    <span className="self-start rounded bg-black/30 px-1.5 py-0.5 font-mono text-[9px] text-white/90">
+                    <span className="self-start rounded bg-black/30 px-1.5 py-0.5 font-sans text-xs text-white/90">
                       IF {jifForJournal(p.journal)}
                     </span>
                   )}
                   {p.discoveryScore != null && (
                     <span
                       title="MEDLINE 색인·연구 유형·저널 선별·인용·최신성·OA를 조합한 내부 추천 점수"
-                      className="self-start rounded bg-black/30 px-1.5 py-0.5 font-mono text-[9px] text-white/90"
+                      className="self-start rounded bg-black/30 px-1.5 py-0.5 font-sans text-xs text-white/90"
                     >
                       선별 {p.discoveryScore}
                     </span>
                   )}
                 </div>
               </div>
-              <p className="mt-2 line-clamp-1 font-mono text-[11px] text-cream/70">{p.authors || ' '}</p>
+              <p className="mt-2 line-clamp-1 font-sans text-sm text-ink/70">{p.authors || ' '}</p>
             </article>
           ))}
         </div>

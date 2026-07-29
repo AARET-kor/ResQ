@@ -11,6 +11,7 @@ import type { Mood } from '../mascot/mood'
 import type { Profile } from '../lib/profile'
 import { AppLink } from '../app/AppLink'
 import type { AppRoute } from '../app/routes'
+import { ThemeToggle } from '../theme/ThemeToggle'
 
 const NAV = [
   { label: '홈', route: 'home' as AppRoute },
@@ -151,7 +152,7 @@ export function Hero({
 
   return (
     <section
-      className="relative overflow-hidden rounded-b-[32px]"
+      className="resq-hero relative overflow-hidden rounded-b-[32px] text-white"
       style={{
         backgroundColor: STAGE_ART[activeStage].bg,
         transition: `background-color 650ms ${EASE}`,
@@ -162,7 +163,7 @@ export function Hero({
       {phase === 'NIGHT' && (
         <div aria-hidden className="absolute inset-0 opacity-70">
           {[[12, 18], [28, 9], [45, 22], [63, 12], [78, 26], [88, 8], [70, 40], [20, 38]].map(([l, t], i) => (
-            <span key={i} className="absolute h-[2px] w-[2px] rounded-full bg-cream/80"
+            <span key={i} className="absolute h-[2px] w-[2px] rounded-full bg-white/80"
               style={{ left: `${l}%`, top: `${t}%` }} />
           ))}
         </div>
@@ -205,21 +206,21 @@ export function Hero({
         <header className="absolute inset-x-0 top-0 flex items-center justify-between px-6 py-8 sm:px-10" style={{ zIndex: 60 }}>
           <span className="font-grotesk text-base uppercase">ResQ</span>
           <nav className="hidden lg:block">
-            <LiquidGlass className="rounded-[28px]">
+            <LiquidGlass className="hero-glass rounded-[28px]">
               <ul className="flex gap-8 px-[52px] py-[24px]">
                 {NAV.map((n) => (
                   <li key={n.label}>
                     {n.settings ? (
                       <button
                         onClick={onOpenSettings}
-                        className="font-grotesk text-[13px] uppercase transition hover:text-neon"
+                        className="font-grotesk text-sm uppercase transition hover:text-neon"
                       >
                         {n.label}
                       </button>
                     ) : (
                       <AppLink
                         to={n.route!}
-                        className="font-grotesk text-[13px] uppercase transition hover:text-neon"
+                        className="font-grotesk text-sm uppercase transition hover:text-neon"
                       >
                         {n.label}
                       </AppLink>
@@ -236,7 +237,7 @@ export function Hero({
                 { Icon: Bird, label: '일정 · 캘린더 연동', href: '/integrations', external: false },
                 { Icon: Globe, label: '전공 학회 홈페이지', href: societyFor(profile.specialty), external: true },
               ].map(({ Icon, label, href, external }) => (
-                <LiquidGlass key={label} className="rounded-[1rem]">
+                <LiquidGlass key={label} className="hero-glass rounded-[1rem]">
                   {external ? (
                     <a
                       href={href}
@@ -261,9 +262,10 @@ export function Hero({
                 </LiquidGlass>
               ))}
             </div>
+            <ThemeToggle className="hero-theme-toggle" />
             <button
               onClick={onSignOut}
-              className="ml-2 font-mono text-xs uppercase text-cream/60 underline transition hover:text-neon"
+              className="ml-1 font-sans text-xs uppercase text-white/75 underline transition hover:text-neon"
             >
               로그아웃
             </button>
@@ -272,7 +274,7 @@ export function Hero({
 
         {/* Info block (top-left, under header) */}
         <div className="absolute left-6 top-28 max-w-xs sm:left-10 sm:top-32" style={{ zIndex: 60 }}>
-          <p className="font-mono text-sm uppercase text-cream/90">
+          <p className="font-sans text-sm uppercase text-white/90">
             {profile.pgy}년차 · {profile.hospital} {profile.specialty}
           </p>
           <h1 className="font-grotesk text-[30px] uppercase leading-[1.05] sm:text-[40px]">
@@ -281,7 +283,7 @@ export function Hero({
           <div className="mt-3">
             <div className="flex items-baseline justify-between font-grotesk uppercase">
               <span className="text-2xl text-neon sm:text-3xl">D-{daysLeft}</span>
-              <span className="font-mono text-xs text-cream/80">수련 {percent.toFixed(1)}%</span>
+              <span className="font-sans text-xs text-white/80">수련 {percent.toFixed(1)}%</span>
             </div>
             <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-black/20">
               <div className="h-full rounded-full bg-neon" style={{ width: `${percent}%` }} />
@@ -317,19 +319,19 @@ export function Hero({
         {/* Bottom-right: stat bar */}
         {mascot && (
           <div className="absolute inset-x-4 bottom-24 sm:inset-x-auto sm:bottom-12 sm:right-10 sm:w-[420px]" style={{ zIndex: 60 }}>
-            <LiquidGlass className="rounded-[24px]">
+            <LiquidGlass className="hero-glass rounded-[24px]">
               <div className="flex flex-col gap-3 p-5">
                 <div className="flex items-center justify-between">
                   <span className="font-grotesk text-xl uppercase">
                     {mascot.name}
-                    <span className="ml-2 font-mono text-xs normal-case" style={{ color: mascot.variantAccent }}>
+                    <span className="ml-2 font-sans text-xs normal-case" style={{ color: mascot.variantAccent }}>
                       {mascot.variantLabel} {mascot.speciesLabel}
                     </span>
                   </span>
                   <span className="font-grotesk text-lg uppercase text-neon">Lv. {mascot.level}</span>
                 </div>
                 <div>
-                  <div className="mb-1 flex justify-between font-mono text-[11px] uppercase text-cream/80">
+                  <div className="mb-1 flex justify-between font-sans text-sm uppercase text-white/80">
                     <span>XP</span>
                     <span>{mascot.xpInLevel} / {mascot.xpForLevel}</span>
                   </div>
@@ -337,7 +339,7 @@ export function Hero({
                     <div className="h-full rounded-full bg-neon transition-[width] duration-[650ms]" style={{ width: `${pct}%` }} />
                   </div>
                 </div>
-                <div className="flex items-center justify-between font-mono text-xs uppercase text-cream/90">
+                <div className="flex items-center justify-between font-sans text-xs uppercase text-white/90">
                   <span>현재 {STAGE_LABEL[mascot.stage]}</span>
                   <span>기분 {MOOD_LABEL[mascot.mood]}</span>
                   <span>{mascot.streakDays}일 연속</span>

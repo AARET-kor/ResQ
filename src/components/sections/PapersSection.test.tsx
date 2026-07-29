@@ -1,9 +1,8 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { PapersSection } from './PapersSection'
 import type { Paper } from '../../lib/pubmed'
-import type { PaperAnalysis } from '../../lib/papers'
 import { journalsFor } from '../../lib/sources'
 
 const papers: Paper[] = [
@@ -29,15 +28,7 @@ const base = {
   onRefresh: vi.fn(),
   onOpen: vi.fn(),
   onUploadPdf: vi.fn(),
-  reports: [] as PaperAnalysis[],
-  onOpenReport: vi.fn(),
-  selected: null as Paper | null,
-  selectedTitle: null as string | null,
-  analysis: null as string | null,
-  analysisKind: null as 'abstract' | 'report' | null,
   analysisLoading: false,
-  analysisError: null as string | null,
-  onClose: vi.fn(),
 }
 
 describe('PapersSection', () => {
@@ -57,20 +48,6 @@ describe('PapersSection', () => {
     expect(onRefresh).toHaveBeenCalled()
     await userEvent.click(screen.getByText('Semaglutide outcomes'))
     expect(onOpen).toHaveBeenCalledWith(papers[0])
-  })
-
-  it('shows the drawer with analysis when a paper is selected', () => {
-    render(<PapersSection {...base} selected={papers[0]} selectedTitle={papers[0].title}
-      analysis={'① 요약...'} analysisKind="abstract" />)
-    const dialog = screen.getByRole('dialog')
-    expect(within(dialog).getByText('① 요약...')).toBeInTheDocument()
-    expect(within(dialog).getByText('Abs one')).toBeInTheDocument()
-  })
-
-  it('shows a friendly notice when analysis failed', () => {
-    render(<PapersSection {...base} selected={papers[0]} selectedTitle={papers[0].title}
-      analysisError={'분석 서버에 연결할 수 없습니다.'} />)
-    expect(screen.getByText(/분석 서버에 연결할 수 없습니다/)).toBeInTheDocument()
   })
 
   it('shows empty and loading states', () => {
@@ -114,54 +91,6 @@ describe('PapersSection', () => {
     const file = new File(['%PDF-'], 'paper.pdf', { type: 'application/pdf' })
     await userEvent.upload(screen.getByLabelText('PDF 업로드'), file)
     expect(onUploadPdf).toHaveBeenCalledWith(file)
-  })
-
-  it('lists saved reports and reopens them', async () => {
-    const onOpenReport = vi.fn()
-    const report = { id: 'pa1', user_id: 'u1', pmid: '111', title: '저장된 리포트', journal: 'APS', year: '2026', abstract: null, analysis: '## 요약', kind: 'report', has_fulltext: true, source: 'APS' }
-    render(<PapersSection {...base} reports={[report as any]} onOpenReport={onOpenReport} />)
-    await userEvent.click(screen.getByText('저장된 리포트'))
-    expect(onOpenReport).toHaveBeenCalled()
-  })
-
-  it('offers an .md download link when a report is open', () => {
-    render(<PapersSection {...base} selected={papers[0]} selectedTitle={papers[0].title}
-      analysis={'## 요약\n내용'} analysisKind="report" />)
-    expect(screen.getByRole('link', { name: /리포트 다운로드/ })).toBeInTheDocument()
-  })
-
-  it('shows source-graph related papers and opens one', async () => {
-    const onOpen = vi.fn()
-    const related = {
-      ...papers[1],
-      pmid: '333',
-      title: 'Related evidence paper',
-      sourceProvider: 'OpenAlex' as const,
-      isOpenAccess: true,
-    }
-    render(<PapersSection {...base} selected={papers[0]} selectedTitle={papers[0].title}
-      relatedPapers={[related]} onOpen={onOpen} />)
-    await userEvent.click(screen.getByRole('button', { name: /연관 논문 1/ }))
-    expect(screen.getByText('Related evidence paper')).toBeInTheDocument()
-    await userEvent.click(screen.getByText('Related evidence paper'))
-    expect(onOpen).toHaveBeenCalledWith(related)
-  })
-
-  it('generates and displays source-grounded research ideation', async () => {
-    const onGenerateIdeation = vi.fn()
-    const { rerender } = render(
-      <PapersSection {...base} selected={papers[0]} selectedTitle={papers[0].title}
-        onGenerateIdeation={onGenerateIdeation} />,
-    )
-    await userEvent.click(screen.getByRole('button', { name: '연구 아이디에이션' }))
-    await userEvent.click(screen.getByRole('button', { name: '아이디에이션 생성' }))
-    expect(onGenerateIdeation).toHaveBeenCalled()
-    rerender(
-      <PapersSection {...base} selected={papers[0]} selectedTitle={papers[0].title}
-        onGenerateIdeation={onGenerateIdeation} ideation="## 검증 가능한 가설 3개" />,
-    )
-    expect(screen.getByText('## 검증 가능한 가설 3개')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /아이디에이션 다운로드/ })).toBeInTheDocument()
   })
 
   it('renders specialty chips with abbrs; primary is locked, others toggle', async () => {

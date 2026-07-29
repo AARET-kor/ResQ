@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#07111f" />
+    <meta name="theme-color" content="#f3f6f1" />
     <meta name="description" content="일정, 할 일, 팀, 논문과 외부 연동을 기능별 공간에서 관리하는 의료 연구 워크스페이스." />
     <meta property="og:title" content="ResQ — 기능마다 자기만의 공간" />
     <meta property="og:description" content="오늘의 업무는 홈에서 한눈에 보고, 일정·팀·논문·연동은 각자의 페이지에서 깊게 관리하세요." />
@@ -15,11 +15,35 @@
     <meta name="twitter:description" content="오늘의 업무는 홈에서 한눈에 보고, 일정·팀·논문·연동은 각자의 페이지에서 깊게 관리하세요." />
     <meta name="twitter:image" content="https://resq-medical-workspace.aret.chatgpt.site/og.png" />
     <title>ResQ — 의료 연구 워크스페이스</title>
+    <script>
+      (() => {
+        const storageKey = 'resq-theme'
+        const darkColor = '#010828'
+        const lightColor = '#f3f6f1'
+        let theme = 'dark'
+
+        try {
+          const savedTheme = localStorage.getItem(storageKey)
+          theme = savedTheme === 'light' || savedTheme === 'dark'
+            ? savedTheme
+            : 'light'
+        } catch {
+          theme = 'light'
+        }
+
+        const root = document.documentElement
+        root.dataset.theme = theme
+        root.classList.toggle('dark', theme === 'dark')
+        root.style.colorScheme = theme
+        document.querySelector('meta[name="theme-color"]')
+          ?.setAttribute('content', theme === 'dark' ? darkColor : lightColor)
+      })()
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Condiment&family=Noto+Serif+KR:wght@600;700;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Condiment&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+KR:wght@400;500;600;700;800&family=Noto+Serif+KR:wght@600;700;900&display=swap" rel="stylesheet" />
   </head>
-  <body class="bg-bg text-cream font-mono">
+  <body class="bg-bg font-sans text-cream">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

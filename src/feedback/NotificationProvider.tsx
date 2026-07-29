@@ -7,10 +7,10 @@ import {
 } from './notificationContext'
 
 const TONE_CLASS = {
-  success: 'border-neon/40 bg-[#102a24] text-cream',
-  error: 'border-red-400/50 bg-[#35151c] text-cream',
-  warning: 'border-amber-300/50 bg-[#362b12] text-cream',
-  info: 'border-sky-300/40 bg-[#10263a] text-cream',
+  success: 'border-emerald-500/50 bg-surface text-ink',
+  error: 'border-red-500/55 bg-surface text-ink',
+  warning: 'border-amber-500/55 bg-surface text-ink',
+  info: 'border-sky-500/50 bg-surface text-ink',
 } as const
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
@@ -84,7 +84,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
             role={item.tone === 'error' ? 'alert' : 'status'}
             className={`pointer-events-auto flex w-full items-start gap-3 rounded-xl border px-4 py-3 shadow-2xl backdrop-blur ${TONE_CLASS[item.tone]}`}
           >
-            <p className="flex-1 font-mono text-xs leading-relaxed">{item.message}</p>
+            <p className="flex-1 font-sans text-xs leading-relaxed">{item.message}</p>
             {item.action && (
               <button
                 type="button"
@@ -92,7 +92,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
                   dismiss(item.id)
                   item.action?.onClick()
                 }}
-                className="shrink-0 rounded-md border border-white/30 px-2 py-1 font-mono text-[10px] uppercase transition hover:bg-white/10"
+                className="shrink-0 rounded-md border border-cream/30 px-2 py-1 font-sans text-sm uppercase transition hover:bg-cream/10"
               >
                 {item.action.label}
               </button>
@@ -101,7 +101,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
               type="button"
               aria-label="알림 닫기"
               onClick={() => dismiss(item.id)}
-              className="shrink-0 text-cream/50 transition hover:text-cream"
+              className="shrink-0 text-cream/70 transition hover:text-cream"
             >
               <X size={14} />
             </button>

@@ -2,30 +2,148 @@
 @tailwind components;
 @tailwind utilities;
 
+:root,
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --color-canvas: 1 8 40;
+  --color-surface: 10 20 50;
+  --color-surface-raised: 18 31 65;
+  --color-ink: 239 244 255;
+  --color-muted: 162 177 202;
+  --color-line: 75 91 124;
+  --color-accent: 111 255 0;
+  --color-accent-ink: 1 26 10;
+  --page-glow: 38 80 160;
+  --glass-alpha: 0.52;
+  --glass-highlight: 255 255 255;
+  --glass-highlight-alpha: 0.38;
+  --texture-blend-mode: lighten;
+  --texture-opacity: 0.38;
+  --accent-plan: #6fff00;
+  --accent-team: #69c7ff;
+  --accent-paper: #ffb86b;
+  --accent-connect: #b9a2ff;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --color-canvas: 243 246 241;
+  --color-surface: 255 255 252;
+  --color-surface-raised: 232 239 232;
+  --color-ink: 18 31 45;
+  --color-muted: 86 103 115;
+  --color-line: 181 194 187;
+  --color-accent: 39 123 35;
+  --color-accent-ink: 255 255 252;
+  --page-glow: 171 220 181;
+  --glass-alpha: 0.78;
+  --glass-highlight: 255 255 255;
+  --glass-highlight-alpha: 0.86;
+  --texture-blend-mode: multiply;
+  --texture-opacity: 0.1;
+  --accent-plan: #277b23;
+  --accent-team: #006b94;
+  --accent-paper: #a34f08;
+  --accent-connect: #6741ad;
+}
+
+@layer base {
+  html {
+    min-width: 320px;
+    background-color: rgb(var(--color-canvas));
+    font-size: 17px;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    min-width: 320px;
+    min-height: 100vh;
+    margin: 0;
+    background:
+      radial-gradient(circle at 78% -12%, rgb(var(--page-glow) / 0.15), transparent 38rem),
+      rgb(var(--color-canvas));
+    color: rgb(var(--color-ink));
+    font-family: "Noto Sans KR", Inter, system-ui, sans-serif;
+    line-height: 1.6;
+    transition: background-color 180ms ease, color 180ms ease;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  ::selection {
+    background: rgb(var(--color-accent) / 0.26);
+    color: rgb(var(--color-ink));
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--color-accent));
+    outline-offset: 3px;
+  }
+}
+
 .liquid-glass {
-  background: rgba(255, 255, 255, 0.01);
+  background: rgb(var(--color-surface) / var(--glass-alpha));
   background-blend-mode: luminosity;
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  border: none;
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(16px) saturate(120%);
+  -webkit-backdrop-filter: blur(16px) saturate(120%);
+  border: 1px solid rgb(var(--color-line) / 0.34);
+  box-shadow:
+    inset 0 1px 0 rgb(var(--glass-highlight) / 0.16),
+    0 18px 60px rgb(0 7 24 / 0.12);
   position: relative;
   overflow: hidden;
 }
+
 .liquid-glass::before {
   content: '';
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  padding: 1.4px;
+  padding: 1px;
   background: linear-gradient(180deg,
-    rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.15) 20%,
-    rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%,
-    rgba(255,255,255,0.15) 80%, rgba(255,255,255,0.45) 100%);
+    rgb(var(--glass-highlight) / var(--glass-highlight-alpha)) 0%,
+    rgb(var(--glass-highlight) / 0.12) 22%,
+    transparent 42%,
+    transparent 68%,
+    rgb(var(--color-line) / 0.22) 100%);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   pointer-events: none;
+}
+
+.resq-hero {
+  --color-accent: 111 255 0;
+  --color-accent-ink: 1 26 10;
+}
+
+.hero-glass.liquid-glass {
+  background: rgb(1 8 40 / 0.42);
+  border-color: rgb(255 255 255 / 0.24);
+  color: white;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.18),
+    0 18px 50px rgb(0 7 24 / 0.18);
+}
+
+.hero-theme-toggle {
+  border-color: rgb(255 255 255 / 0.28);
+  background: rgb(1 8 40 / 0.48);
+  color: white;
+}
+
+.resq-texture-overlay {
+  background-image: url('/texture.png');
+  background-size: cover;
+  mix-blend-mode: var(--texture-blend-mode);
+  opacity: var(--texture-opacity);
+  transition: opacity 180ms ease;
 }
 
 @keyframes qbi-float {
@@ -41,10 +159,11 @@
 
 .shelf-scroll {
   display: flex;
-  gap: 16px;
+  gap: 1rem;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
-  padding-bottom: 8px;
+  padding-bottom: 0.5rem;
   scrollbar-width: thin;
+  scrollbar-color: rgb(var(--color-line) / 0.7) transparent;
 }
 .shelf-scroll > * { scroll-snap-align: start; flex-shrink: 0; }
