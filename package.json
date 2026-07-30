@@ -21,7 +21,7 @@
     "desktop:test": "node --test desktop/*.test.cjs",
     "desktop:start": "npm run build && electron .",
     "desktop:dir": "npm run build && electron-builder --dir",
-    "desktop:dist": "npm run build && electron-builder"
+    "desktop:dist": "npm run build && electron-builder --publish never"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.2",

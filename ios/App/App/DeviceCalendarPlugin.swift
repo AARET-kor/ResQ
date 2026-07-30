@@ -51,7 +51,7 @@ public final class DeviceCalendarPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
-    @objc func requestPermissions(_ call: CAPPluginCall) {
+    @objc public override func requestPermissions(_ call: CAPPluginCall) {
         let finish: () -> Void = {
             call.resolve([
                 "platform": "apple",
