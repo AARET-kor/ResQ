@@ -1,9 +1,8 @@
 import type { Profile } from '../lib/profile'
 import { PageIntro } from '../components/PageIntro'
 import { PlanWorkstation } from '../components/sections/PlanWorkstation'
-import { ScheduleSection } from '../components/sections/ScheduleSection'
-import { TodoSection } from '../components/sections/TodoSection'
 import { useIntegrationSources } from '../home/hooks/useIntegrationSources'
+import { usePlannerCapture } from '../home/hooks/usePlannerCapture'
 import { useSchedule } from '../home/hooks/useSchedule'
 import { useTodos } from '../home/hooks/useTodos'
 import { monthRangeISO } from '../lib/calendar'
@@ -19,6 +18,15 @@ export function PlanPage({
   const todos = useTodos({ profile, onProfileChange })
   const schedule = useSchedule(profile.id)
   const { sources, loading: sourcesLoading } = useIntegrationSources(profile.id)
+  const plannerCapture = usePlannerCapture({
+    specialty: profile.specialty,
+    onAddEvent: schedule.add,
+    onAddTodo: todos.add,
+    onShowDate: (date) => {
+      const [nextYear, nextMonth] = date.split('-').map(Number)
+      schedule.changeMonth(nextYear, nextMonth - 1)
+    },
+  })
   const openTodoCount = todos.todos.filter((todo) => !todo.done).length
   const connectedSourceCount = sources.filter((source) => source.selected).length
   const monthRange = monthRangeISO(schedule.year, schedule.month0)
@@ -37,7 +45,11 @@ export function PlanPage({
     ...todos.todos,
   ].flatMap((item) =>
     item.source_provider
-      ? [`${item.source_provider}:${item.external_source_id}`]
+      ? [
+          `${item.source_provider}:${
+            item.external_source_id ?? '__unresolved__'
+          }`,
+        ]
       : [],
   )
   const readOnlySourceKeys = new Set([
@@ -83,42 +95,18 @@ export function PlanPage({
         onAddEvent={schedule.add}
         onAddTodo={todos.add}
         onToggleTodo={todos.toggle}
+        onDeleteEvent={schedule.remove}
+        onDeleteTodo={todos.remove}
         addingEvent={schedule.adding}
         addingTodo={todos.adding}
+        loadingEvents={schedule.loading}
+        loadingTodos={todos.loading}
+        loadingSources={sourcesLoading}
+        deletingEventIds={schedule.deletingIds}
         pendingTodoIds={todos.pendingIds}
         readOnlySourceKeys={readOnlySourceKeys}
+        plannerCapture={plannerCapture}
       />
-      <div className="plan-workspace-grid">
-        <TodoSection
-          todos={todos.todos}
-          onAdd={todos.add}
-          onToggle={todos.toggle}
-          onDelete={todos.remove}
-          onExtract={todos.extract}
-          extracting={todos.extracting}
-          extracted={todos.extracted}
-          onAddExtracted={todos.addExtracted}
-          onDismissExtracted={todos.dismissExtracted}
-          loading={todos.loading}
-          adding={todos.adding}
-          addingExtracted={todos.addingExtracted}
-          pendingIds={todos.pendingIds}
-          readOnlySourceKeys={readOnlySourceKeys}
-        />
-        <ScheduleSection
-          events={schedule.events}
-          sources={sources}
-          year={schedule.year}
-          month0={schedule.month0}
-          onMonthChange={schedule.changeMonth}
-          onAdd={schedule.add}
-          onDelete={schedule.remove}
-          loading={schedule.loading}
-          adding={schedule.adding}
-          deletingIds={schedule.deletingIds}
-          readOnlySourceKeys={readOnlySourceKeys}
-        />
-      </div>
     </div>
   )
 }

@@ -1,12 +1,11 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { useAuth } from './auth/AuthProvider'
+import { useAuth } from './auth/authContext'
 import { supabase } from './lib/supabase'
 import { getProfile, upsertProfile, isProfileComplete, type Profile } from './lib/profile'
 import { LoginScreen } from './components/LoginScreen'
 import { Onboarding, type OnboardingValues } from './components/Onboarding'
 import { Hero } from './components/Hero'
 import { SettingsModal } from './components/SettingsModal'
-import { TextureOverlay } from './components/TextureOverlay'
 import { AppHeader } from './components/AppHeader'
 import { useMascot } from './mascot/useMascot'
 import { useAppRoute } from './app/routes'
@@ -83,16 +82,15 @@ export default function App() {
     return <div className="flex min-h-screen items-center justify-center font-sans text-sm uppercase text-muted">loading…</div>
   }
   if (!session) return (
-    <>
-      <TextureOverlay />
-      <LoginScreen
-        onSignIn={signIn}
-        onAppleSignIn={signInWithApple}
-        appleSignInAvailable={appleSignInAvailable}
-      />
-    </>
+    <LoginScreen
+      onSignIn={signIn}
+      onAppleSignIn={signInWithApple}
+      appleSignInAvailable={appleSignInAvailable}
+    />
   )
-  if (!isProfileComplete(profile)) return (<><TextureOverlay /><Onboarding onSubmit={handleOnboard} error={onboardError} /></>)
+  if (!isProfileComplete(profile)) {
+    return <Onboarding onSubmit={handleOnboard} error={onboardError} />
+  }
   const activeProfile = profile!
   const page = route === 'plan'
     ? <PlanPage profile={activeProfile} onProfileChange={setProfile} />
@@ -105,7 +103,6 @@ export default function App() {
           : null
   return (
     <>
-      {route === 'home' && <TextureOverlay />}
       {route === 'home' ? (
         <>
           <Hero

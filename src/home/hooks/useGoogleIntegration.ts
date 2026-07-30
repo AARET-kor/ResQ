@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Browser } from '@capacitor/browser'
 import { Capacitor } from '@capacitor/core'
-import { useAuth } from '../../auth/AuthProvider'
+import { useAuth } from '../../auth/authContext'
 import { useNotifications } from '../../feedback/notificationContext'
 import { requestErrorMessage } from '../../feedback/requestError'
 import { connectDeviceCalendar, deviceProvider, isDeviceCalendarAvailable, syncDeviceCalendar } from '../../lib/deviceCalendar'
@@ -266,14 +266,18 @@ export function useGoogleIntegration({
     setCatalogLoading(true)
     try {
       const native = Capacitor.isNativePlatform()
+      const desktop = Boolean(window.resqDesktop?.isDesktop)
       const authorizationUrl = await startOAuthConnection(
         supabase,
         provider,
         native
           ? 'com.resq.medical://integration/callback'
+          : desktop
+            ? 'resq://integration/callback'
           : `${window.location.origin}${window.location.pathname}`,
       )
       if (native) await Browser.open({ url: authorizationUrl })
+      else if (desktop) await window.resqDesktop!.openExternal(authorizationUrl)
       else window.location.assign(authorizationUrl)
     } catch (error) {
       console.error(error)
@@ -624,7 +628,9 @@ export function useGoogleIntegration({
       const added = await onAddEvent({
         title: candidate.title,
         starts_at: candidate.starts_at,
+        ends_at: candidate.ends_at,
         kind: candidate.kind,
+        location: candidate.location,
       })
       if (!added) return
       setExtracted((current) => current.filter((event) => event !== candidate))

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 
 const useAuth = vi.fn()
-vi.mock('./auth/AuthProvider', () => ({ useAuth: () => useAuth() }))
+vi.mock('./auth/authContext', () => ({ useAuth: () => useAuth() }))
 
 const getProfile = vi.fn()
 const upsertProfile = vi.fn()

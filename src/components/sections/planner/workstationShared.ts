@@ -17,6 +17,8 @@ export interface EventDraft {
   starts_at: string
   kind: EventKind
   ends_at?: string | null
+  location?: string | null
+  notes?: string | null
   source_provider?: IntegrationProvider | null
   external_source_id?: string | null
   sync_status?: SyncStatus
@@ -29,6 +31,26 @@ export interface TodoDraftOptions {
   sourceProvider?: IntegrationProvider | null
   externalSourceId?: string | null
   syncStatus?: SyncStatus
+}
+
+export type PlannerItemSelection =
+  | { type: 'event'; event: EventItem }
+  | { type: 'todo'; todo: Todo }
+
+/**
+ * External items are only editable when they can be matched to a source that
+ * PlanPage has positively identified as writable. Missing source metadata must
+ * fail closed instead of being mistaken for a local ResQ item.
+ */
+export function isPlannerItemReadOnly(
+  item: EventItem | Todo,
+  readOnlySourceKeys: ReadonlySet<string>,
+): boolean {
+  if (!item.source_provider) return false
+  if (!item.external_source_id) return true
+  return readOnlySourceKeys.has(
+    `${item.source_provider}:${item.external_source_id}`,
+  )
 }
 
 export const TASK_FILTERS: Array<{ id: PlannerTaskFilter; label: string }> = [
@@ -78,8 +100,10 @@ export function shortDate(date: string): string {
 }
 
 export function sourceKey(item: EventItem | Todo): string {
-  return item.source_provider && item.external_source_id
-    ? `${item.source_provider}:${item.external_source_id}`
+  return item.source_provider
+    ? `${item.source_provider}:${
+      item.external_source_id ?? '__unresolved__'
+    }`
     : 'resq'
 }
 

@@ -8,6 +8,7 @@ ResQ는 Capacitor 8 기반의 iOS·Android 앱 프로젝트를 함께 제공합�
 - 웹 로그인과 네이티브 OAuth 딥링크 복귀
 - iOS Calendar·Reminders 읽기·생성·수정·삭제
 - Android 시스템 캘린더 읽기·생성·수정·삭제
+- 메모 붙여넣기·사진 선택·카메라 촬영을 통한 AI 일정·할 일 후보 생성
 - 선택한 목록별 읽기 전용·양방향 동기화
 - Google Calendar·Tasks, Outlook·Microsoft To Do, Todoist 서버 OAuth
 - ICS 가져오기·구독 및 CalDAV
@@ -20,7 +21,7 @@ Android에는 표준 Reminders 저장소가 없습니다. 삼성 Reminder는 Sam
 npm run mobile:doctor
 ```
 
-iOS 빌드에는 macOS, Xcode 전체 버전, Apple Developer 팀이 필요합니다. Android 빌드에는 Android Studio와 JDK 17이 필요합니다.
+iOS Simulator 빌드에는 macOS와 Xcode 전체 버전이 필요합니다. 실제 iPhone 설치·TestFlight 배포에는 별도로 Apple Developer 팀과 서명이 필요합니다. Android 빌드에는 Android Studio, Android SDK 36, JDK 21이 필요합니다.
 
 ## 공통 동기화
 
@@ -40,6 +41,24 @@ npm run mobile:sync
 
 앱은 iOS 17 이상에서 `requestFullAccessToEvents`와 `requestFullAccessToReminders`를 사용하고, iOS 16에서는 기존 권한 API로 안전하게 폴백합니다.
 
+서명 없이 Simulator용 앱을 만드는 명령은 다음과 같습니다.
+
+```bash
+npm run mobile:sync
+xcodebuild \
+  -project ios/App/App.xcodeproj \
+  -scheme App \
+  -configuration Debug \
+  -sdk iphonesimulator \
+  -destination "generic/platform=iOS Simulator" \
+  -derivedDataPath release/ios-simulator \
+  CODE_SIGNING_ALLOWED=NO \
+  CODE_SIGNING_REQUIRED=NO \
+  build
+```
+
+이 산출물은 Simulator에서만 실행할 수 있으며 실제 iPhone에는 설치할 수 없습니다.
+
 ## Android 내부 테스트
 
 1. Android Studio에서 `android` 프로젝트를 엽니다.
@@ -53,6 +72,23 @@ npm run mobile:sync
 ```bash
 npm run mobile:android:debug
 ```
+
+debug APK는 Android의 자동 생성 디버그 키로 서명되므로 개발자 계정 없이 Emulator와 실제 기기에 설치할 수 있습니다. Play Console에 올릴 AAB는 별도의 업로드 키가 필요합니다.
+
+## GitHub Actions 산출물
+
+`.github/workflows/app-artifacts.yml`은 수동 실행 또는 `v*` 태그 푸시 때 다음 파일을 생성합니다.
+
+- Android debug APK
+- 서명 없는 iOS Simulator `.app` ZIP
+- macOS·Windows Electron 설치 파일
+
+워크플로를 실행하기 전에 저장소 Actions secrets에 다음 값을 등록합니다.
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
+Apple 로그인을 노출하려면 Actions variable `VITE_APPLE_AUTH_ENABLED=true`도 설정합니다.
 
 ## 출시 전 확인
 

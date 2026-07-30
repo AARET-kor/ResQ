@@ -2,7 +2,9 @@ import {
   CheckCircle2,
   Circle,
   ExternalLink,
+  LockKeyhole,
   Plus,
+  Trash2,
 } from 'lucide-react'
 import { useMemo, useState, type CSSProperties } from 'react'
 import type { IntegrationSource } from '../../../lib/integrations'
@@ -19,9 +21,10 @@ import {
 import {
   PROVIDER_FALLBACK,
   TASK_FILTERS,
+  isPlannerItemReadOnly,
   shortDate,
-  sourceKey,
   sourceLabel,
+  type PlannerItemSelection,
 } from './workstationShared'
 
 export interface PlannerTasksViewProps {
@@ -31,6 +34,9 @@ export interface PlannerTasksViewProps {
   pendingTodoIds: Set<string>
   onToggleTodo: (todo: Todo) => void
   onAddTodo: () => void
+  onSelectItem?: (selection: PlannerItemSelection) => void
+  onDeleteTodo?: (id: string) => void
+  deletingTodoIds?: Set<string>
 }
 
 export function PlannerTasksView({
@@ -40,6 +46,9 @@ export function PlannerTasksView({
   pendingTodoIds,
   onToggleTodo,
   onAddTodo,
+  onSelectItem,
+  onDeleteTodo,
+  deletingTodoIds = new Set<string>(),
 }: PlannerTasksViewProps) {
   const [taskFilter, setTaskFilter] = useState<PlannerTaskFilter>('all')
   const [taskSourceId, setTaskSourceId] = useState('all')
@@ -62,8 +71,7 @@ export function PlannerTasksView({
           && todo.external_source_id === selectedSource.external_id
         )),
     [
-      selectedSource?.external_id,
-      selectedSource?.provider,
+      selectedSource,
       taskFilter,
       taskSourceId,
       todos,
@@ -156,19 +164,32 @@ export function PlannerTasksView({
         </header>
 
         <ul>
-          {filteredTodos.map((todo) => (
-            <li key={todo.id} className={todo.done ? 'is-done' : ''}>
-              <label>
+          {filteredTodos.map((todo) => {
+            const readOnly = isPlannerItemReadOnly(todo, readOnlySourceKeys)
+            const pending = pendingTodoIds.has(todo.id)
+              || deletingTodoIds.has(todo.id)
+
+            return (
+            <li
+              key={todo.id}
+              className={`${todo.done ? 'is-done' : ''} ${
+                readOnly ? 'is-read-only' : ''
+              }`}
+            >
+              <div className="planner-task-row__main">
                 <input
                   type="checkbox"
+                  aria-label={todo.title}
                   checked={todo.done}
                   onChange={() => onToggleTodo(todo)}
-                  disabled={
-                    pendingTodoIds.has(todo.id)
-                    || readOnlySourceKeys.has(sourceKey(todo))
-                  }
+                  disabled={pending || readOnly}
                 />
-                <span>
+                <button
+                  type="button"
+                  aria-label={`${todo.title} 할 일 상세 보기`}
+                  onClick={() => onSelectItem?.({ type: 'todo', todo })}
+                  className="planner-task-row__detail"
+                >
                   <strong>{todo.title}</strong>
                   <small>
                     {todo.due_date
@@ -179,8 +200,8 @@ export function PlannerTasksView({
                     {' · '}
                     {sourceLabel(todo, sources)}
                   </small>
-                </span>
-              </label>
+                </button>
+              </div>
               <span
                 className="planner-priority-mark"
                 style={{
@@ -189,6 +210,15 @@ export function PlannerTasksView({
               >
                 {PRIORITY_LABEL[todo.priority]}
               </span>
+              {readOnly && (
+                <span
+                  className="planner-read-only-mark"
+                  title="읽기 전용 연결입니다. 원본 앱에서 수정하세요."
+                >
+                  <LockKeyhole aria-hidden size={13} />
+                  읽기 전용
+                </span>
+              )}
               {todo.external_url && (
                 <a
                   href={todo.external_url}
@@ -200,8 +230,23 @@ export function PlannerTasksView({
                   <ExternalLink aria-hidden size={14} />
                 </a>
               )}
+              {onDeleteTodo && (
+                <button
+                  type="button"
+                  aria-label={`${todo.title} 삭제`}
+                  title={readOnly
+                    ? '읽기 전용 연결에서는 원본 앱에서 삭제하세요.'
+                    : '할 일 삭제'}
+                  onClick={() => onDeleteTodo(todo.id)}
+                  disabled={pending || readOnly}
+                  className="resq-icon-control planner-delete-control"
+                >
+                  <Trash2 aria-hidden size={14} />
+                </button>
+              )}
             </li>
-          ))}
+            )
+          })}
         </ul>
 
         {filteredTodos.length === 0 && (

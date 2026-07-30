@@ -15,6 +15,7 @@ import {
   WEEKDAY,
   eventColor,
   sourceLabel,
+  type PlannerItemSelection,
 } from './workstationShared'
 
 export interface PlannerMonthViewProps {
@@ -27,6 +28,7 @@ export interface PlannerMonthViewProps {
   decorations: Record<string, DateDecoration>
   onSelectDate: (date: string) => void
   onOpenCapture: (type: 'event' | 'todo', date?: string) => void
+  onSelectItem?: (selection: PlannerItemSelection) => void
 }
 
 export function PlannerMonthView({
@@ -39,6 +41,7 @@ export function PlannerMonthView({
   decorations,
   onSelectDate,
   onOpenCapture,
+  onSelectItem,
 }: PlannerMonthViewProps) {
   const monthCells = monthGrid(year, month0)
 
@@ -101,9 +104,15 @@ export function PlannerMonthView({
                   const isEnd = range.endDate === cell.date
 
                   return (
-                    <span
+                    <button
+                      type="button"
                       key={event.id}
                       title={`${event.title} · ${sourceLabel(event, sources)}`}
+                      aria-label={`${event.title} 일정 상세 보기`}
+                      onClick={() => {
+                        onSelectDate(cell.date)
+                        onSelectItem?.({ type: 'event', event })
+                      }}
                       className={`planner-event-bar ${
                         eventIsMultiDay(event) ? 'planner-event-bar--span' : ''
                       } ${isStart ? 'planner-event-bar--start' : ''} ${
@@ -117,13 +126,19 @@ export function PlannerMonthView({
                         <CalendarRange aria-hidden size={11} />
                       )}
                       <span>{event.title}</span>
-                    </span>
+                    </button>
                   )
                 })}
                 {dayTodos.slice(0, 1).map((todo) => (
-                  <span
+                  <button
+                    type="button"
                     key={todo.id}
                     title={`${todo.title} · ${sourceLabel(todo, sources)}`}
+                    aria-label={`${todo.title} 할 일 상세 보기`}
+                    onClick={() => {
+                      onSelectDate(cell.date)
+                      onSelectItem?.({ type: 'todo', todo })
+                    }}
                     className="planner-todo-chip"
                     style={{
                       '--item-color': PRIORITY_COLOR[todo.priority],
@@ -131,7 +146,7 @@ export function PlannerMonthView({
                   >
                     <CheckCircle2 aria-hidden size={11} />
                     <span>{todo.title}</span>
-                  </span>
+                  </button>
                 ))}
                 {dayEvents.length + dayTodos.length > 3 && (
                   <span className="planner-more-count">

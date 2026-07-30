@@ -68,7 +68,10 @@ function callbackUrl(): string {
 
 function safeReturnTo(req: Request, value: unknown): string | null {
   if (typeof value !== 'string' || value.length > 1000) return null
-  if (value === 'com.resq.medical://integration/callback') return value
+  if (
+    value === 'com.resq.medical://integration/callback'
+    || value === 'resq://integration/callback'
+  ) return value
   try {
     const target = new URL(value)
     const requestOrigin = req.headers.get('origin')

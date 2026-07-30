@@ -12,8 +12,9 @@ import { PRIORITY_COLOR, type Todo } from '../../../lib/todos'
 import {
   WEEKDAY,
   eventColor,
-  sourceKey,
+  isPlannerItemReadOnly,
   sourceLabel,
+  type PlannerItemSelection,
 } from './workstationShared'
 
 export interface PlannerWeekViewProps {
@@ -25,6 +26,7 @@ export interface PlannerWeekViewProps {
   onSelectDate: (date: string) => void
   onOpenCapture: (type: 'event' | 'todo', date?: string) => void
   onToggleTodo: (todo: Todo) => void
+  onSelectItem?: (selection: PlannerItemSelection) => void
   pendingTodoIds?: Set<string>
   readOnlySourceKeys?: Set<string>
 }
@@ -38,6 +40,7 @@ export function PlannerWeekView({
   onSelectDate,
   onOpenCapture,
   onToggleTodo,
+  onSelectItem,
   pendingTodoIds = new Set<string>(),
   readOnlySourceKeys = new Set<string>(),
 }: PlannerWeekViewProps) {
@@ -72,8 +75,14 @@ export function PlannerWeekView({
             </button>
             <div className="planner-week-day__items">
               {dayEvents.map((event) => (
-                <div
+                <button
+                  type="button"
                   key={event.id}
+                  aria-label={`${event.title} 일정 상세 보기`}
+                  onClick={() => {
+                    onSelectDate(date)
+                    onSelectItem?.({ type: 'event', event })
+                  }}
                   className="planner-week-item"
                   style={{
                     '--item-color': eventColor(event, sources),
@@ -84,10 +93,10 @@ export function PlannerWeekView({
                   </span>
                   <strong>{event.title}</strong>
                   <span>{sourceLabel(event, sources)}</span>
-                </div>
+                </button>
               ))}
               {dayTodos.map((todo) => (
-                <label
+                <div
                   key={todo.id}
                   className="planner-week-item planner-week-item--todo"
                   style={{
@@ -96,16 +105,27 @@ export function PlannerWeekView({
                 >
                   <input
                     type="checkbox"
+                    aria-label={todo.title}
                     checked={todo.done}
                     onChange={() => onToggleTodo(todo)}
                     disabled={
                       pendingTodoIds.has(todo.id)
-                      || readOnlySourceKeys.has(sourceKey(todo))
+                      || isPlannerItemReadOnly(todo, readOnlySourceKeys)
                     }
                   />
-                  <strong>{todo.title}</strong>
-                  <span>{todo.due_time ?? '할 일'}</span>
-                </label>
+                  <button
+                    type="button"
+                    aria-label={`${todo.title} 할 일 상세 보기`}
+                    onClick={() => {
+                      onSelectDate(date)
+                      onSelectItem?.({ type: 'todo', todo })
+                    }}
+                    className="planner-week-item__detail"
+                  >
+                    <strong>{todo.title}</strong>
+                    <span>{todo.due_time ?? '할 일'}</span>
+                  </button>
+                </div>
               ))}
               {dayEvents.length === 0 && dayTodos.length === 0 && (
                 <p className="planner-day-empty">비어 있음</p>

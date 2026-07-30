@@ -1,26 +1,17 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import type { Provider } from '@supabase/supabase-js'
 import { Capacitor } from '@capacitor/core'
 import { App } from '@capacitor/app'
 import { Browser } from '@capacitor/browser'
 import { supabase } from '../lib/supabase'
+import { AuthContext } from './authContext'
 
 const NATIVE_AUTH_CALLBACK = 'com.resq.medical://auth/callback'
-
-interface AuthState {
-  session: Session | null
-  loading: boolean
-  signIn: () => Promise<void>
-  reconnectGoogle: () => Promise<void>
-  signInWithApple: () => Promise<void>
-  appleSignInAvailable: boolean
-  signOut: () => Promise<void>
-  /** Google OAuth access token from the current session (null when absent/expired). */
-  providerToken: string | null
-}
-
-const AuthContext = createContext<AuthState | undefined>(undefined)
+const NATIVE_INTEGRATION_CALLBACK =
+  'com.resq.medical://integration/callback'
+const DESKTOP_AUTH_CALLBACK = 'resq://auth/callback'
+const DESKTOP_INTEGRATION_CALLBACK = 'resq://integration/callback'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
@@ -52,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await Browser.close()
         return
       }
-      if (url.startsWith('com.resq.medical://integration/callback')) {
+      if (url.startsWith(NATIVE_INTEGRATION_CALLBACK)) {
         const callback = new URL(url)
         const target = new URL(window.location.href)
         target.searchParams.set(
@@ -77,23 +68,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  useEffect(() => {
+    const desktop = window.resqDesktop
+    if (!desktop?.isDesktop) return
+
+    return desktop.onDeepLink((url) => {
+      void (async () => {
+        if (url.startsWith(DESKTOP_AUTH_CALLBACK)) {
+          const code = new URL(url).searchParams.get('code')
+          if (!code) return
+          const { error } = await supabase.auth.exchangeCodeForSession(code)
+          if (error) console.error(error)
+          return
+        }
+
+        if (url.startsWith(DESKTOP_INTEGRATION_CALLBACK)) {
+          const callback = new URL(url)
+          const target = new URL(window.location.href)
+          target.searchParams.set(
+            'integration',
+            callback.searchParams.get('integration') ?? 'integration-error',
+          )
+          const reason = callback.searchParams.get('reason')
+          if (reason) target.searchParams.set('reason', reason)
+          window.location.replace(target.toString())
+        }
+      })()
+    })
+  }, [])
+
   const signInProvider = async (
     provider: Provider,
     scopes?: string,
     queryParams?: Record<string, string>,
   ) => {
     const native = Capacitor.isNativePlatform()
+    const desktop = Boolean(window.resqDesktop?.isDesktop)
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: native ? NATIVE_AUTH_CALLBACK : window.location.origin,
+        redirectTo: native
+          ? NATIVE_AUTH_CALLBACK
+          : desktop
+            ? DESKTOP_AUTH_CALLBACK
+            : window.location.origin,
         scopes,
         queryParams,
-        skipBrowserRedirect: native,
+        skipBrowserRedirect: native || desktop,
       },
     })
     if (error) throw error
     if (native && data.url) await Browser.open({ url: data.url })
+    else if (desktop && data.url) {
+      await window.resqDesktop!.openExternal(data.url)
+    }
   }
 
   const signIn = async () => {
@@ -127,10 +155,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   )
-}
-
-export function useAuth(): AuthState {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider')
-  return ctx
 }

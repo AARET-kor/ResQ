@@ -20,6 +20,7 @@ import {
   addDaysISO,
   eventOccursOnDate,
   itemMatchesProvider,
+  kstDateISO,
   todayKst,
   weekDates,
   type DateDecoration,
@@ -27,9 +28,15 @@ import {
   type PlannerView,
 } from '../../lib/planner'
 import type { Todo } from '../../lib/todos'
+import type {
+  PlannerCandidate,
+  PlannerCaptureInput,
+} from '../../lib/plannerExtract'
 import { LiquidGlass } from '../LiquidGlass'
 import { PlannerAgendaView } from './planner/PlannerAgendaView'
+import { PlannerAiInbox } from './planner/PlannerAiInbox'
 import { PlannerHeader } from './planner/PlannerHeader'
+import { PlannerInspector } from './planner/PlannerInspector'
 import { PlannerMonthView } from './planner/PlannerMonthView'
 import {
   PlannerQuickCapture,
@@ -41,6 +48,7 @@ import {
   DECORATIONS,
   shortDate,
   type EventDraft,
+  type PlannerItemSelection,
   type TodoDraftOptions,
 } from './planner/workstationShared'
 
@@ -53,6 +61,22 @@ interface PlannerPreferences {
 interface CaptureSession {
   type: PlannerCaptureType
   date: string
+}
+
+export interface PlannerCaptureController {
+  candidates: PlannerCandidate[]
+  selectedIds: ReadonlySet<string>
+  candidateErrors?: ReadonlyMap<string, string>
+  extracting: boolean
+  savingIds: ReadonlySet<string>
+  savingSelected: boolean
+  extract: (input: PlannerCaptureInput) => void | Promise<unknown>
+  updateCandidate: (candidate: PlannerCandidate) => void
+  setSelectedIds: (ids: Set<string>) => void
+  saveCandidate: (candidate: PlannerCandidate) => void | Promise<unknown>
+  saveSelected: () => void | Promise<unknown>
+  dismissCandidate: (id: string) => void
+  dismissAll: () => void
 }
 
 export interface PlanWorkstationProps {
@@ -69,10 +93,17 @@ export interface PlanWorkstationProps {
     options: TodoDraftOptions,
   ) => boolean | void | Promise<boolean | void>
   onToggleTodo: (todo: Todo) => void
+  onDeleteEvent?: (id: string) => void
+  onDeleteTodo?: (id: string) => void
   addingEvent?: boolean
   addingTodo?: boolean
+  loadingEvents?: boolean
+  loadingTodos?: boolean
+  loadingSources?: boolean
+  deletingEventIds?: Set<string>
   pendingTodoIds?: Set<string>
   readOnlySourceKeys?: Set<string>
+  plannerCapture?: PlannerCaptureController
 }
 
 function loadPreferences(userId: string): PlannerPreferences {
@@ -118,10 +149,17 @@ export function PlanWorkstation({
   onAddEvent,
   onAddTodo,
   onToggleTodo,
+  onDeleteEvent,
+  onDeleteTodo,
   addingEvent = false,
   addingTodo = false,
+  loadingEvents = false,
+  loadingTodos = false,
+  loadingSources = false,
+  deletingEventIds = new Set<string>(),
   pendingTodoIds = new Set<string>(),
   readOnlySourceKeys = new Set<string>(),
+  plannerCapture,
 }: PlanWorkstationProps) {
   const initial = useMemo(() => loadPreferences(userId), [userId])
   const [view, setView] = useState<PlannerView>(initial.view)
@@ -135,6 +173,9 @@ export function PlanWorkstation({
   const [query, setQuery] = useState('')
   const [capture, setCapture] = useState<CaptureSession | null>(null)
   const [decorationOpen, setDecorationOpen] = useState(false)
+  const [inspectorDate, setInspectorDate] = useState<string | null>(null)
+  const [inspectorSelection, setInspectorSelection] =
+    useState<PlannerItemSelection | null>(null)
 
   useEffect(() => {
     try {
@@ -153,6 +194,17 @@ export function PlanWorkstation({
       setSelectedDate(`${displayedPrefix}-01`)
     }
   }, [month0, selectedDate, year])
+
+  useEffect(() => {
+    if (!inspectorSelection) return
+    const selectedId = inspectorSelection.type === 'event'
+      ? inspectorSelection.event.id
+      : inspectorSelection.todo.id
+    const exists = inspectorSelection.type === 'event'
+      ? events.some((event) => event.id === selectedId)
+      : todos.some((todo) => todo.id === selectedId)
+    if (!exists) setInspectorSelection(null)
+  }, [events, inspectorSelection, todos])
 
   const selectedSources = sources.filter((source) => source.selected)
   const providers = Array.from(new Set<IntegrationProvider>([
@@ -176,6 +228,21 @@ export function PlanWorkstation({
 
   const selectDate = (date: string) => {
     setSelectedDate(date)
+    setInspectorDate(date)
+    setInspectorSelection(null)
+    const [nextYear, nextMonth] = date.split('-').map(Number)
+    if (nextYear !== year || nextMonth - 1 !== month0) {
+      onMonthChange(nextYear, nextMonth - 1)
+    }
+  }
+
+  const selectItem = (selection: PlannerItemSelection) => {
+    const date = selection.type === 'event'
+      ? kstDateISO(selection.event.starts_at)
+      : selection.todo.due_date ?? selectedDate
+    setSelectedDate(date)
+    setInspectorDate(date)
+    setInspectorSelection(selection)
     const [nextYear, nextMonth] = date.split('-').map(Number)
     if (nextYear !== year || nextMonth - 1 !== month0) {
       onMonthChange(nextYear, nextMonth - 1)
@@ -219,6 +286,7 @@ export function PlanWorkstation({
     })
     setDecorationOpen(false)
   }
+  const loading = loadingEvents || loadingTodos || loadingSources
 
   return (
     <LiquidGlass className="plan-card planner-workstation">
@@ -240,6 +308,30 @@ export function PlanWorkstation({
             openCapture(view === 'tasks' ? 'todo' : 'event')}
         />
 
+        {plannerCapture && (
+          <PlannerAiInbox
+            candidates={plannerCapture.candidates}
+            selectedIds={plannerCapture.selectedIds}
+            candidateErrors={plannerCapture.candidateErrors}
+            extracting={plannerCapture.extracting}
+            savingIds={plannerCapture.savingIds}
+            savingSelected={plannerCapture.savingSelected}
+            onExtract={async (input) => {
+              await plannerCapture.extract(input)
+            }}
+            onChangeCandidate={plannerCapture.updateCandidate}
+            onSelectionChange={plannerCapture.setSelectedIds}
+            onSaveCandidate={async (candidate) => {
+              await plannerCapture.saveCandidate(candidate)
+            }}
+            onSaveSelected={async () => {
+              await plannerCapture.saveSelected()
+            }}
+            onDismissCandidate={plannerCapture.dismissCandidate}
+            onDismissAll={plannerCapture.dismissAll}
+          />
+        )}
+
         {capture && (
           <PlannerQuickCapture
             initialType={capture.type}
@@ -253,7 +345,22 @@ export function PlanWorkstation({
           />
         )}
 
-        {view === 'month' && (
+        {loading && (
+          <div
+            className="planner-workstation-loading"
+            role="status"
+            aria-live="polite"
+          >
+            <div className="planner-workstation-loading__grid" aria-hidden>
+              {Array.from({ length: 12 }, (_, index) => (
+                <span key={index} />
+              ))}
+            </div>
+            <strong>워크스테이션을 불러오는 중…</strong>
+          </div>
+        )}
+
+        {!loading && view === 'month' && (
           <PlannerMonthView
             year={year}
             month0={month0}
@@ -264,10 +371,11 @@ export function PlanWorkstation({
             decorations={decorations}
             onSelectDate={selectDate}
             onOpenCapture={openCapture}
+            onSelectItem={selectItem}
           />
         )}
 
-        {view === 'week' && (
+        {!loading && view === 'week' && (
           <PlannerWeekView
             selectedDate={selectedDate}
             events={visibleEvents}
@@ -279,10 +387,11 @@ export function PlanWorkstation({
             onToggleTodo={onToggleTodo}
             pendingTodoIds={pendingTodoIds}
             readOnlySourceKeys={readOnlySourceKeys}
+            onSelectItem={selectItem}
           />
         )}
 
-        {view === 'agenda' && (
+        {!loading && view === 'agenda' && (
           <PlannerAgendaView
             visibleEvents={visibleEvents}
             visibleTodos={visibleTodos}
@@ -290,10 +399,14 @@ export function PlanWorkstation({
             readOnlySourceKeys={readOnlySourceKeys}
             pendingTodoIds={pendingTodoIds}
             onToggleTodo={onToggleTodo}
+            onSelectItem={selectItem}
+            onDeleteTodo={onDeleteTodo}
+            onDeleteEvent={onDeleteEvent}
+            deletingEventIds={deletingEventIds}
           />
         )}
 
-        {view === 'tasks' && (
+        {!loading && view === 'tasks' && (
           <PlannerTasksView
             todos={visibleTodos}
             sources={sources}
@@ -301,6 +414,31 @@ export function PlanWorkstation({
             pendingTodoIds={pendingTodoIds}
             onToggleTodo={onToggleTodo}
             onAddTodo={() => openCapture('todo')}
+            onSelectItem={selectItem}
+            onDeleteTodo={onDeleteTodo}
+            deletingTodoIds={pendingTodoIds}
+          />
+        )}
+
+        {(inspectorDate || inspectorSelection) && (
+          <PlannerInspector
+            selectedDate={inspectorDate}
+            selection={inspectorSelection}
+            events={events}
+            todos={todos}
+            sources={sources}
+            readOnlySourceKeys={readOnlySourceKeys}
+            pendingTodoIds={pendingTodoIds}
+            deletingEventIds={deletingEventIds}
+            onSelectItem={selectItem}
+            onBackToDay={() => setInspectorSelection(null)}
+            onClose={() => {
+              setInspectorDate(null)
+              setInspectorSelection(null)
+            }}
+            onToggleTodo={onToggleTodo}
+            onDeleteTodo={onDeleteTodo}
+            onDeleteEvent={onDeleteEvent}
           />
         )}
 

@@ -1,6 +1,8 @@
 node_modules/
 dist/
 dist-ssr/
+release/
+supabase/.temp/cli-latest
 .env
 .env.local
 *.local

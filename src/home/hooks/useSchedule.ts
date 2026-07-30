@@ -19,6 +19,8 @@ export interface NewScheduleEvent {
   starts_at: string
   kind: EventKind
   ends_at?: string | null
+  location?: string | null
+  notes?: string | null
   source_provider?: IntegrationProvider | null
   external_source_id?: string | null
   sync_status?: SyncStatus

@@ -3,6 +3,8 @@ import {
   CopyCheck,
   ExternalLink,
   ListTodo,
+  LockKeyhole,
+  Trash2,
 } from 'lucide-react'
 import { useMemo, type CSSProperties } from 'react'
 import type { EventItem } from '../../../lib/events'
@@ -18,7 +20,9 @@ import { PRIORITY_COLOR, type Todo } from '../../../lib/todos'
 import { buildUnifiedTimeline } from '../../../lib/unifiedTimeline'
 import {
   eventColor,
+  isPlannerItemReadOnly,
   shortDate,
+  type PlannerItemSelection,
 } from './workstationShared'
 
 export interface PlannerAgendaViewProps {
@@ -28,6 +32,10 @@ export interface PlannerAgendaViewProps {
   readOnlySourceKeys: Set<string>
   pendingTodoIds: Set<string>
   onToggleTodo: (todo: Todo) => void
+  onSelectItem?: (selection: PlannerItemSelection) => void
+  onDeleteTodo?: (id: string) => void
+  onDeleteEvent?: (id: string) => void
+  deletingEventIds?: Set<string>
 }
 
 export function PlannerAgendaView({
@@ -37,6 +45,10 @@ export function PlannerAgendaView({
   readOnlySourceKeys,
   pendingTodoIds,
   onToggleTodo,
+  onSelectItem,
+  onDeleteTodo,
+  onDeleteEvent,
+  deletingEventIds = new Set<string>(),
 }: PlannerAgendaViewProps) {
   const { agenda, duplicateByKey } = useMemo(() => {
     const unifiedTimeline = buildUnifiedTimeline(
@@ -65,8 +77,24 @@ export function PlannerAgendaView({
             : undefined
         const duplicate = duplicateByKey.get(item.key)
         const externalUrl = item.event?.external_url ?? item.todo?.external_url
-        const readOnly = item.provider !== 'resq'
-          && readOnlySourceKeys.has(`${item.provider}:${item.sourceId}`)
+        const selectedItem = item.event
+          ? { type: 'event' as const, event: item.event }
+          : item.todo
+            ? { type: 'todo' as const, todo: item.todo }
+            : null
+        const readOnly = selectedItem
+          ? isPlannerItemReadOnly(
+            selectedItem.type === 'event'
+              ? selectedItem.event
+              : selectedItem.todo,
+            readOnlySourceKeys,
+          )
+          : false
+        const pending = item.todo
+          ? pendingTodoIds.has(item.todo.id)
+          : item.event
+            ? deletingEventIds.has(item.event.id)
+            : false
 
         return (
           <article
@@ -93,7 +121,15 @@ export function PlannerAgendaView({
                 ? <CalendarClock aria-hidden size={16} />
                 : <ListTodo aria-hidden size={16} />}
             </span>
-            <div className="planner-agenda-row__main">
+            <button
+              type="button"
+              disabled={!selectedItem || !onSelectItem}
+              onClick={() => {
+                if (selectedItem) onSelectItem?.(selectedItem)
+              }}
+              className="planner-agenda-row__main"
+              aria-label={`${item.title} 상세 보기`}
+            >
               <strong>{item.title}</strong>
               <span>
                 {source?.name
@@ -110,28 +146,67 @@ export function PlannerAgendaView({
                   </em>
                 )}
               </span>
+            </button>
+            <div className="planner-agenda-row__actions">
+              {readOnly && (
+                <span
+                  className="planner-read-only-mark"
+                  title="읽기 전용 연결입니다. 원본 앱에서 수정하세요."
+                >
+                  <LockKeyhole aria-hidden size={13} />
+                  읽기 전용
+                </span>
+              )}
+              {item.todo && (
+                <button
+                  type="button"
+                  disabled={pending || readOnly}
+                  onClick={() => onToggleTodo(item.todo!)}
+                  className="resq-secondary-button"
+                >
+                  {item.todo.done ? '되돌리기' : '완료'}
+                </button>
+              )}
+              {externalUrl && (
+                <a
+                  href={externalUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label={`${item.title} 원본 앱에서 열기`}
+                  className="resq-icon-control"
+                >
+                  <ExternalLink aria-hidden size={15} />
+                </a>
+              )}
+              {item.todo && onDeleteTodo && (
+                <button
+                  type="button"
+                  aria-label={`${item.title} 할 일 삭제`}
+                  title={readOnly
+                    ? '읽기 전용 연결에서는 원본 앱에서 삭제하세요.'
+                    : '할 일 삭제'}
+                  disabled={pending || readOnly}
+                  onClick={() => onDeleteTodo(item.todo!.id)}
+                  className="resq-icon-control planner-delete-control"
+                >
+                  <Trash2 aria-hidden size={14} />
+                </button>
+              )}
+              {item.event && onDeleteEvent && (
+                <button
+                  type="button"
+                  aria-label={`${item.title} 일정 삭제`}
+                  title={readOnly
+                    ? '읽기 전용 연결에서는 원본 앱에서 삭제하세요.'
+                    : '일정 삭제'}
+                  disabled={pending || readOnly}
+                  onClick={() => onDeleteEvent(item.event!.id)}
+                  className="resq-icon-control planner-delete-control"
+                >
+                  <Trash2 aria-hidden size={14} />
+                </button>
+              )}
             </div>
-            {item.todo && (
-              <button
-                type="button"
-                disabled={pendingTodoIds.has(item.todo.id) || readOnly}
-                onClick={() => onToggleTodo(item.todo!)}
-                className="resq-secondary-button"
-              >
-                {item.todo.done ? '되돌리기' : '완료'}
-              </button>
-            )}
-            {externalUrl && (
-              <a
-                href={externalUrl}
-                target="_blank"
-                rel="noreferrer"
-                aria-label={`${item.title} 원본 앱에서 열기`}
-                className="resq-icon-control"
-              >
-                <ExternalLink aria-hidden size={15} />
-              </a>
-            )}
           </article>
         )
       })}
