@@ -149,7 +149,7 @@ public final class DeviceCalendarPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     private func reminderObject(_ reminder: EKReminder) -> JSObject {
-        var dueAt: Any = NSNull()
+        var dueAt: any JSValue = NSNull()
         if let components = reminder.dueDateComponents,
            let date = Calendar.current.date(from: components) {
             dueAt = isoFormatter.string(from: date)
