@@ -1,22 +1,46 @@
 import { describe, it, expect } from 'vitest'
-import { listEventsInRange, addEvent, deleteEvent, EVENT_KINDS, type EventItem } from './events'
+import {
+  addEvent,
+  deleteEvent,
+  EVENT_KINDS,
+  eventOverlapsRange,
+  listEventsInRange,
+  listEventsOverlappingRange,
+  type EventItem,
+} from './events'
 
 function fakeClient(rows: EventItem[]) {
   const calls: { op: string; args: any }[] = []
+  const selectQuery = {
+    eq: (column: string, value: unknown) => {
+      calls.push({ op: 'eq', args: { column, value } })
+      return selectQuery
+    },
+    is: (column: string, value: unknown) => {
+      calls.push({ op: 'is', args: { column, value } })
+      return selectQuery
+    },
+    gte: (column: string, value: unknown) => {
+      calls.push({ op: 'gte', args: { column, value } })
+      return selectQuery
+    },
+    lt: (column: string, value: unknown) => {
+      calls.push({ op: 'lt', args: { column, value } })
+      return selectQuery
+    },
+    or: (filter: string) => {
+      calls.push({ op: 'or', args: filter })
+      return selectQuery
+    },
+    order: (column: string, options: unknown) => {
+      calls.push({ op: 'order', args: { column, options } })
+      return Promise.resolve({ data: rows, error: null })
+    },
+  }
   const client = {
     calls,
     from: () => ({
-      select: () => ({
-        eq: () => ({
-          is: () => ({
-            gte: () => ({
-              lt: () => ({
-                order: () => Promise.resolve({ data: rows, error: null }),
-              }),
-            }),
-          }),
-        }),
-      }),
+      select: () => selectQuery,
       insert: (values: any) => ({
         select: () => ({
           single: () => {
@@ -55,6 +79,56 @@ const e1: EventItem = {
 describe('events data access', () => {
   it('lists events in a range', async () => {
     expect(await listEventsInRange(fakeClient([e1]), 'u1', '2026-07-01', '2026-08-01')).toHaveLength(1)
+  })
+  it('queries every event overlapping a range, including earlier starts', async () => {
+    const c = fakeClient([{
+      ...e1,
+      starts_at: '2026-06-25T09:00:00+09:00',
+      ends_at: '2026-07-02T18:00:00+09:00',
+    }])
+    expect(await listEventsOverlappingRange(
+      c,
+      'u1',
+      '2026-06-28',
+      '2026-08-09',
+    )).toHaveLength(1)
+    expect(c.calls).toContainEqual({
+      op: 'lt',
+      args: { column: 'starts_at', value: '2026-08-09' },
+    })
+    expect(c.calls).toContainEqual({
+      op: 'or',
+      args: 'ends_at.gt.2026-06-28,and(ends_at.is.null,starts_at.gte.2026-06-28)',
+    })
+  })
+  it('matches instant and spanning events to the same overlap window', () => {
+    const start = '2026-06-28'
+    const end = '2026-08-09'
+    expect(eventOverlapsRange({
+      ...e1,
+      starts_at: '2026-06-25T09:00:00Z',
+      ends_at: '2026-06-30T09:00:00Z',
+    }, start, end)).toBe(true)
+    expect(eventOverlapsRange({
+      ...e1,
+      starts_at: '2026-06-20T09:00:00Z',
+      ends_at: '2026-06-27T23:59:59Z',
+    }, start, end)).toBe(false)
+    expect(eventOverlapsRange({
+      ...e1,
+      starts_at: '2026-06-20T09:00:00Z',
+      ends_at: '2026-06-28T00:00:00Z',
+    }, start, end)).toBe(false)
+    expect(eventOverlapsRange({
+      ...e1,
+      starts_at: '2026-08-09T00:00:00Z',
+      ends_at: null,
+    }, start, end)).toBe(false)
+    expect(eventOverlapsRange({
+      ...e1,
+      starts_at: '2026-08-08T23:59:59Z',
+      ends_at: null,
+    }, start, end)).toBe(true)
   })
   it('adds an event with user id and kind', async () => {
     const c = fakeClient([])

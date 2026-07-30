@@ -51,14 +51,66 @@ export async function listEventsInRange(
   return (data as EventItem[]) ?? []
 }
 
+/**
+ * Lists events that overlap [startISO, endISO).
+ *
+ * Unlike listEventsInRange, this also returns an event that started before the
+ * requested range and continues into it. A null end is treated as an instant
+ * event at starts_at.
+ */
+export async function listEventsOverlappingRange(
+  client: SupabaseClient,
+  userId: string,
+  startISO: string,
+  endISO: string,
+): Promise<EventItem[]> {
+  const { data, error } = await client
+    .from('events')
+    .select('*')
+    .eq('user_id', userId)
+    .is('deleted_at', null)
+    .lt('starts_at', endISO)
+    .or(`ends_at.gt.${startISO},and(ends_at.is.null,starts_at.gte.${startISO})`)
+    .order('starts_at', { ascending: true })
+  if (error) throw error
+  return (data as EventItem[]) ?? []
+}
+
+/** Mirrors the overlap semantics used by listEventsOverlappingRange. */
+export function eventOverlapsRange(
+  event: EventItem,
+  startISO: string,
+  endISO: string,
+): boolean {
+  const rangeStart = Date.parse(startISO)
+  const rangeEnd = Date.parse(endISO)
+  const eventStart = Date.parse(event.starts_at)
+  const eventEnd = event.ends_at ? Date.parse(event.ends_at) : eventStart
+
+  if ([rangeStart, rangeEnd, eventStart, eventEnd].some(Number.isNaN)) return false
+  return eventStart < rangeEnd
+    && (event.ends_at ? eventEnd > rangeStart : eventStart >= rangeStart)
+}
+
 export async function addEvent(
   client: SupabaseClient,
   userId: string,
-  values: { title: string; starts_at: string; kind: EventKind; ends_at?: string | null; location?: string | null; notes?: string | null },
+  values: {
+    title: string
+    starts_at: string
+    kind: EventKind
+    ends_at?: string | null
+    location?: string | null
+    notes?: string | null
+    source_provider?: IntegrationProvider | null
+    external_source_id?: string | null
+    sync_status?: SyncStatus
+  },
 ): Promise<EventItem> {
+  const { sync_status = 'pending', ...eventValues } = values
   const { data, error } = await client
     .from('events')
-    .insert({ user_id: userId, ...values, sync_status: 'pending' })
+    .insert({ user_id: userId, ...eventValues, sync_status })
     .select()
     .single()
   if (error) throw error

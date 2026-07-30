@@ -29,3 +29,21 @@ export function monthGrid(year: number, month0: number): DayCell[] {
 export function monthRangeISO(year: number, month0: number): { start: string; end: string } {
   return { start: iso(year, month0, 1), end: iso(year, month0 + 1, 1) }
 }
+
+/**
+ * [start, end) ISO dates covering the full 42-cell month grid.
+ *
+ * Month views include leading and trailing days from adjacent months, so
+ * schedule queries need this wider range instead of the calendar month alone.
+ */
+export function calendarGridRangeISO(
+  year: number,
+  month0: number,
+): { start: string; end: string } {
+  const first = new Date(year, month0, 1)
+  const startOffset = first.getDay()
+  return {
+    start: iso(year, month0, 1 - startOffset),
+    end: iso(year, month0, 1 - startOffset + 42),
+  }
+}

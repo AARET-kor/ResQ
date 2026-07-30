@@ -51,7 +51,25 @@ describe('ScheduleSection', () => {
     expect(onAdd).toHaveBeenCalledWith({
       title: '수술 참관',
       starts_at: '2026-07-22T08:30:00+09:00',
+      ends_at: null,
       kind: 'surgery',
+    })
+  })
+  it('submits an end date for a multi-day event', async () => {
+    const onAdd = vi.fn()
+    render(<ScheduleSection events={[]} year={2026} month0={6}
+      onMonthChange={vi.fn()} onAdd={onAdd} onDelete={vi.fn()} />)
+    await userEvent.type(screen.getByLabelText('일정 제목'), '3일 연속 학회')
+    await userEvent.type(screen.getByLabelText('날짜'), '2026-07-22')
+    await userEvent.type(screen.getByLabelText('시간'), '08:30')
+    await userEvent.type(screen.getByLabelText('종료일'), '2026-07-24')
+    await userEvent.selectOptions(screen.getByLabelText('종류'), 'conference')
+    await userEvent.click(screen.getByRole('button', { name: '일정 추가' }))
+    expect(onAdd).toHaveBeenCalledWith({
+      title: '3일 연속 학회',
+      starts_at: '2026-07-22T08:30:00+09:00',
+      ends_at: '2026-07-24T08:30:00+09:00',
+      kind: 'conference',
     })
   })
   it('keeps the event draft when saving fails', async () => {

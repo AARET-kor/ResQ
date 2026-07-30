@@ -4,6 +4,8 @@ import type { IntegrationProvider, SyncStatus } from './integrations'
 
 export type TodoPriority = 'high' | 'normal' | 'low'
 
+export const PRIORITIES: TodoPriority[] = ['high', 'normal', 'low']
+
 export const PRIORITY_LABEL: Record<TodoPriority, string> = {
   high: '높음', normal: '보통', low: '낮음',
 }
@@ -49,7 +51,13 @@ export async function addTodo(
   userId: string,
   title: string,
   dueDate: string | null,
-  opts: { priority?: TodoPriority; dueTime?: string | null } = {},
+  opts: {
+    priority?: TodoPriority
+    dueTime?: string | null
+    sourceProvider?: IntegrationProvider | null
+    externalSourceId?: string | null
+    syncStatus?: SyncStatus
+  } = {},
 ): Promise<Todo> {
   const { data, error } = await client
     .from('todos')
@@ -59,7 +67,9 @@ export async function addTodo(
       due_date: dueDate,
       priority: opts.priority ?? 'normal',
       due_time: opts.dueTime ?? null,
-      sync_status: 'pending',
+      source_provider: opts.sourceProvider ?? null,
+      external_source_id: opts.externalSourceId ?? null,
+      sync_status: opts.syncStatus ?? 'pending',
     })
     .select()
     .single()

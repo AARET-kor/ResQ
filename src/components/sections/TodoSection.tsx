@@ -121,7 +121,7 @@ export function TodoSection({
   const openCount = sorted.filter((todo) => !todo.done).length
 
   return (
-    <LiquidGlass className="plan-card">
+    <LiquidGlass className="plan-card todo-card">
       <div className="plan-card__content">
         <header className="plan-card__header">
           <div className="plan-card__heading">

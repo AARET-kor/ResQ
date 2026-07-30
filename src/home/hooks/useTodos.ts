@@ -8,6 +8,7 @@ import {
   type Todo,
   type TodoPriority,
 } from '../../lib/todos'
+import type { IntegrationProvider, SyncStatus } from '../../lib/integrations'
 import { requestTodoExtraction, type ExtractedTodo } from '../../lib/todoExtract'
 import type { Profile } from '../../lib/profile'
 import { useNotifications } from '../../feedback/notificationContext'
@@ -53,7 +54,14 @@ export function useTodos({ profile, onProfileChange }: UseTodosOptions) {
 
   const add = async (
     title: string,
-    options: { priority: TodoPriority; dueDate: string | null; dueTime: string | null },
+    options: {
+      priority: TodoPriority
+      dueDate: string | null
+      dueTime: string | null
+      sourceProvider?: IntegrationProvider | null
+      externalSourceId?: string | null
+      syncStatus?: SyncStatus
+    },
   ) => {
     if (addingRef.current) return false
     addingRef.current = true
@@ -62,6 +70,9 @@ export function useTodos({ profile, onProfileChange }: UseTodosOptions) {
       const todo = await addTodo(supabase, userId, title, options.dueDate, {
         priority: options.priority,
         dueTime: options.dueTime,
+        sourceProvider: options.sourceProvider,
+        externalSourceId: options.externalSourceId,
+        syncStatus: options.syncStatus,
       })
       setTodos((current) => [todo, ...current])
       return true

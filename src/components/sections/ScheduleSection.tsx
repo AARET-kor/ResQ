@@ -1,9 +1,20 @@
 import { useState, type CSSProperties, type FormEvent } from 'react'
-import { ArrowLeft, ArrowRight, CalendarDays, Inbox, Plus } from 'lucide-react'
+import { ArrowLeft, ArrowRight, CalendarDays, CalendarRange, Inbox, Plus } from 'lucide-react'
 import { LiquidGlass } from '../LiquidGlass'
 import { monthGrid } from '../../lib/calendar'
 import { EVENT_KINDS, type EventItem, type EventKind } from '../../lib/events'
-import { PROVIDER_LABEL } from '../../lib/integrations'
+import { PROVIDER_LABEL, type IntegrationSource } from '../../lib/integrations'
+import {
+  addDaysISO,
+  eventDisplayRange,
+  eventIsMultiDay,
+  eventOccursOnDate,
+  eventOccursInDateRange,
+  kstDateISO,
+  kstTimeHHMM,
+  sourceForItem,
+  todayKst,
+} from '../../lib/planner'
 
 const KIND_DOT: Record<EventKind, string> = {
   conference: '#238452',
@@ -15,13 +26,6 @@ const KIND_DOT: Record<EventKind, string> = {
 
 const MONTHS = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월']
 const MAX_CALENDAR_EVENTS = 2
-
-function todayISO(): string {
-  const d = new Date()
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  return `${d.getFullYear()}-${mm}-${dd}`
-}
 
 function MonthPicker({
   year,
@@ -83,6 +87,7 @@ function MonthPicker({
 
 export function ScheduleSection({
   events,
+  sources = [],
   year,
   month0,
   onMonthChange,
@@ -94,10 +99,16 @@ export function ScheduleSection({
   readOnlySourceKeys = new Set<string>(),
 }: {
   events: EventItem[]
+  sources?: IntegrationSource[]
   year: number
   month0: number
   onMonthChange: (year: number, month0: number) => void
-  onAdd: (v: { title: string; starts_at: string; kind: EventKind }) => boolean | void | Promise<boolean | void>
+  onAdd: (v: {
+    title: string
+    starts_at: string
+    ends_at?: string | null
+    kind: EventKind
+  }) => boolean | void | Promise<boolean | void>
   onDelete: (id: string) => void
   loading?: boolean
   adding?: boolean
@@ -107,17 +118,20 @@ export function ScheduleSection({
   const [title, setTitle] = useState('')
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
+  const [endDate, setEndDate] = useState('')
   const [kind, setKind] = useState<EventKind>('other')
   const [pickerOpen, setPickerOpen] = useState(false)
 
   const cells = monthGrid(year, month0)
-  const byDate = new Map<string, EventItem[]>()
-  for (const e of events) {
-    const d = e.starts_at.slice(0, 10)
-    byDate.set(d, [...(byDate.get(d) ?? []), e])
-  }
+  const monthStart = `${year}-${String(month0 + 1).padStart(2, '0')}-01`
+  const nextMonth = new Date(Date.UTC(year, month0 + 1, 1))
+    .toISOString()
+    .slice(0, 10)
+  const monthEvents = events.filter((event) =>
+    eventOccursInDateRange(event, monthStart, nextMonth),
+  )
 
-  const today = todayISO()
+  const today = todayKst()
 
   const prev = () => (month0 === 0 ? onMonthChange(year - 1, 11) : onMonthChange(year, month0 - 1))
   const next = () => (month0 === 11 ? onMonthChange(year + 1, 0) : onMonthChange(year, month0 + 1))
@@ -125,13 +139,18 @@ export function ScheduleSection({
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     if (!title.trim() || !date || !time || adding) return
-    const saved = await onAdd({ title: title.trim(), starts_at: `${date}T${time}:00+09:00`, kind })
+    const saved = await onAdd({
+      title: title.trim(),
+      starts_at: `${date}T${time}:00+09:00`,
+      ends_at: endDate ? `${endDate}T${time}:00+09:00` : null,
+      kind,
+    })
     if (saved === false) return
-    setTitle(''); setDate(''); setTime(''); setKind('other')
+    setTitle(''); setDate(''); setTime(''); setEndDate(''); setKind('other')
   }
 
   return (
-    <LiquidGlass className="plan-card">
+    <LiquidGlass className="plan-card schedule-card">
       <div className="plan-card__content">
         <header className="plan-card__header schedule-card__header">
           <div className="plan-card__heading">
@@ -183,7 +202,7 @@ export function ScheduleSection({
         </div>
         <div className="calendar-grid" aria-label={`${year}년 ${month0 + 1}월 달력`}>
           {cells.map((c) => {
-            const dayEvents = byDate.get(c.date) ?? []
+            const dayEvents = events.filter((event) => eventOccursOnDate(event, c.date))
             const isToday = c.date === today
             return (
               <div
@@ -198,9 +217,15 @@ export function ScheduleSection({
                     <span
                       key={event.id}
                       title={event.title}
-                      className="calendar-event-chip"
-                      style={{ '--event-color': KIND_DOT[event.kind] } as CSSProperties}
+                      className={`calendar-event-chip ${
+                        eventIsMultiDay(event) ? 'calendar-event-chip--span' : ''
+                      }`}
+                      style={{
+                        '--event-color': sourceForItem(event, sources)?.color
+                          ?? KIND_DOT[event.kind],
+                      } as CSSProperties}
                     >
+                      {eventIsMultiDay(event) && <CalendarRange aria-hidden size={10} />}
                       {event.title}
                     </span>
                   ))}
@@ -223,7 +248,7 @@ export function ScheduleSection({
 
         <div className="schedule-list-heading">
           <span className="schedule-list-title">이번 달 일정</span>
-          <span className="plan-count">{events.length}개</span>
+          <span className="plan-count">{monthEvents.length}개</span>
         </div>
 
         {loading && (
@@ -232,14 +257,19 @@ export function ScheduleSection({
           </div>
         )}
         {!loading && <ul className="schedule-event-list">
-          {events.map((e) => (
+          {monthEvents.map((e) => (
             <li
               key={e.id}
               className="schedule-event-row"
-              style={{ borderLeft: `3px solid ${KIND_DOT[e.kind]}` }}
+              style={{
+                borderLeft: `3px solid ${
+                  sourceForItem(e, sources)?.color ?? KIND_DOT[e.kind]
+                }`,
+              }}
             >
               <span className="schedule-event-row__time">
-                {e.starts_at.slice(5, 10)} {e.starts_at.slice(11, 16)}
+                {kstDateISO(e.starts_at).slice(5)} {kstTimeHHMM(e.starts_at)}
+                {eventIsMultiDay(e) && ` ~ ${eventDisplayRange(e).endDate.slice(5)}까지`}
               </span>
               <span className="schedule-event-row__title">{e.title}</span>
               {e.source_provider && (
@@ -265,7 +295,7 @@ export function ScheduleSection({
               </button>
             </li>
           ))}
-          {events.length === 0 && (
+          {monthEvents.length === 0 && (
             <li className="resq-empty-state">
               <span className="resq-empty-state__icon">
                 <Inbox aria-hidden size={22} />
@@ -279,7 +309,7 @@ export function ScheduleSection({
         </ul>}
 
         <form onSubmit={submit} className="schedule-composer">
-          <label className="resq-field-label">
+          <label className="resq-field-label schedule-composer__title">
             일정 제목
             <input aria-label="일정 제목" value={title} onChange={(e) => setTitle(e.target.value)}
               placeholder="예: 학회 발표 준비"
@@ -287,7 +317,10 @@ export function ScheduleSection({
           </label>
           <label className="resq-field-label">
             날짜
-            <input aria-label="날짜" type="date" value={date} onChange={(e) => setDate(e.target.value)}
+            <input aria-label="날짜" type="date" value={date} onChange={(e) => {
+              setDate(e.target.value)
+              if (endDate && endDate <= e.target.value) setEndDate('')
+            }}
               className="resq-field" />
           </label>
           <label className="resq-field-label">
@@ -304,8 +337,19 @@ export function ScheduleSection({
               ))}
             </select>
           </label>
+          <label className="resq-field-label">
+            종료일 · 여러 날 일정
+            <input
+              aria-label="종료일"
+              type="date"
+              min={date ? addDaysISO(date, 1) : undefined}
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="resq-field"
+            />
+          </label>
           <button type="submit" disabled={adding}
-            className="resq-primary-button">
+            className="resq-primary-button schedule-composer__submit">
             <Plus aria-hidden size={16} />
             {adding ? '추가 중…' : '일정 추가'}
           </button>

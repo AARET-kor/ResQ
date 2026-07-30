@@ -1,20 +1,27 @@
 import { useEffect, useRef, useState } from 'react'
-import { monthRangeISO } from '../../lib/calendar'
+import { calendarGridRangeISO } from '../../lib/calendar'
 import {
   addEvent,
   deleteEvent,
-  listEventsInRange,
+  eventOverlapsRange,
+  listEventsOverlappingRange,
   type EventItem,
   type EventKind,
 } from '../../lib/events'
+import type { IntegrationProvider, SyncStatus } from '../../lib/integrations'
 import { supabase } from '../../lib/supabase'
 import { useNotifications } from '../../feedback/notificationContext'
 import { requestErrorMessage } from '../../feedback/requestError'
+import { todayKst } from '../../lib/planner'
 
 export interface NewScheduleEvent {
   title: string
   starts_at: string
   kind: EventKind
+  ends_at?: string | null
+  source_provider?: IntegrationProvider | null
+  external_source_id?: string | null
+  sync_status?: SyncStatus
 }
 
 export function useSchedule(userId: string) {
@@ -26,14 +33,14 @@ export function useSchedule(userId: string) {
   const [reloadToken, setReloadToken] = useState(0)
   const addingRef = useRef(false)
   const deletingIdsRef = useRef(new Set<string>())
-  const [year, setYear] = useState(() => new Date().getFullYear())
-  const [month0, setMonth0] = useState(() => new Date().getMonth())
+  const [year, setYear] = useState(() => Number(todayKst().slice(0, 4)))
+  const [month0, setMonth0] = useState(() => Number(todayKst().slice(5, 7)) - 1)
 
   useEffect(() => {
     let active = true
     setLoading(true)
-    const { start, end } = monthRangeISO(year, month0)
-    listEventsInRange(supabase, userId, start, end)
+    const { start, end } = calendarGridRangeISO(year, month0)
+    listEventsOverlappingRange(supabase, userId, start, end)
       .then((items) => { if (active) setEvents(items) })
       .catch((error) => {
         console.error(error)
@@ -53,9 +60,8 @@ export function useSchedule(userId: string) {
     setAdding(true)
     try {
       const event = await addEvent(supabase, userId, values)
-      const { start, end } = monthRangeISO(year, month0)
-      const day = event.starts_at.slice(0, 10)
-      if (day >= start && day < end) {
+      const { start, end } = calendarGridRangeISO(year, month0)
+      if (eventOverlapsRange(event, start, end)) {
         setEvents((current) =>
           [...current, event].sort((a, b) => a.starts_at.localeCompare(b.starts_at)),
         )
