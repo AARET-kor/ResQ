@@ -31,6 +31,11 @@ iOS Simulator 빌드에는 macOS와 Xcode 전체 버전이 필요합니다. 실�
 npm run mobile:sync
 ```
 
+Supabase Dashboard의 **Authentication → URL Configuration**에는 모바일
+복귀 주소 `com.resq.medical://auth/callback`을 반드시 허용합니다. 이 주소가
+빠지면 Supabase가 기본 Site URL로 폴백하여 로그인 후 앱으로 돌아오지
+않습니다.
+
 ## iPhone 내부 테스트
 
 1. Apple Developer에서 `com.resq.medical` App ID를 생성합니다.
@@ -77,7 +82,8 @@ debug APK는 Android의 자동 생성 디버그 키로 서명되므로 개발자
 
 ## GitHub Actions 산출물
 
-`.github/workflows/app-artifacts.yml`은 수동 실행 또는 `v*` 태그 푸시 때 다음 파일을 생성합니다.
+`.github/workflows/app-artifacts.yml`은 `main`·`feat/home-sections` 푸시,
+수동 실행 또는 `v*` 태그 푸시 때 다음 파일을 생성합니다.
 
 - Android debug APK
 - 서명 없는 iOS Simulator `.app` ZIP

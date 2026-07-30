@@ -4,12 +4,15 @@ import type { Session } from '@supabase/supabase-js'
 export interface AuthState {
   session: Session | null
   loading: boolean
+  authPending: boolean
+  authError: string | null
   signIn: () => Promise<void>
   reconnectGoogle: () => Promise<void>
   signInWithApple: () => Promise<void>
   appleSignInAvailable: boolean
   signOut: () => Promise<void>
-  /** Google OAuth access token from the current session (null when absent/expired). */
+  clearAuthError: () => void
+  /** Explicitly consented Gmail OAuth token (null for basic Google sign-in). */
   providerToken: string | null
 }
 

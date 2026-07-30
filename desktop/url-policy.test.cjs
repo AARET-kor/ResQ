@@ -4,6 +4,7 @@ const assert = require('node:assert/strict')
 const test = require('node:test')
 const {
   extractDeepLink,
+  isRendererUrl,
   isResQDeepLink,
   isSafeExternalUrl,
 } = require('./url-policy.cjs')
@@ -11,8 +12,19 @@ const {
 test('accepts only ResQ deep links', () => {
   assert.equal(isResQDeepLink('resq://auth/callback?code=abc'), true)
   assert.equal(isResQDeepLink('resq://integration/callback?integration=google'), true)
+  assert.equal(isResQDeepLink('resq://other/callback?code=abc'), false)
+  assert.equal(isResQDeepLink('resq://auth/callback-elsewhere?code=abc'), false)
+  assert.equal(isResQDeepLink('resq://auth@evil.example/callback?code=abc'), false)
   assert.equal(isResQDeepLink('https://example.com'), false)
   assert.equal(isResQDeepLink('not a URL'), false)
+})
+
+test('accepts only the bundled renderer origin', () => {
+  assert.equal(isRendererUrl('resq-app://app/'), true)
+  assert.equal(isRendererUrl('resq-app://app/plan'), true)
+  assert.equal(isRendererUrl('resq-app://app.evil.example/plan'), false)
+  assert.equal(isRendererUrl('resq-app://app@evil.example/plan'), false)
+  assert.equal(isRendererUrl('https://app/plan'), false)
 })
 
 test('extracts a ResQ deep link from process arguments', () => {

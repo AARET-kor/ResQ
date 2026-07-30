@@ -6,6 +6,7 @@ const { pathToFileURL } = require('node:url')
 const {
   app,
   BrowserWindow,
+  dialog,
   ipcMain,
   net,
   protocol,
@@ -13,9 +14,14 @@ const {
 } = require('electron')
 const {
   extractDeepLink,
+  isRendererUrl,
   isResQDeepLink,
   isSafeExternalUrl,
 } = require('./url-policy.cjs')
+const {
+  activateWindow,
+  attemptProtocolRegistration,
+} = require('./window-lifecycle.cjs')
 
 const APP_SCHEME = 'resq-app'
 const APP_ORIGIN = `${APP_SCHEME}://app`
@@ -50,8 +56,14 @@ function registerResQProtocol() {
 }
 
 function resolveRendererFile(requestUrl) {
+  if (!isRendererUrl(requestUrl)) return null
   const url = new URL(requestUrl)
-  const relativePath = decodeURIComponent(url.pathname).replace(/^\/+/, '')
+  let relativePath
+  try {
+    relativePath = decodeURIComponent(url.pathname).replace(/^\/+/, '')
+  } catch {
+    return null
+  }
   const candidate = path.resolve(rendererRoot, relativePath || 'index.html')
   const rootPrefix = `${rendererRoot}${path.sep}`
 
@@ -105,7 +117,7 @@ function createWindow() {
     return { action: 'deny' }
   })
   mainWindow.webContents.on('will-navigate', (event, targetUrl) => {
-    if (targetUrl.startsWith(APP_ORIGIN)) return
+    if (isRendererUrl(targetUrl)) return
     event.preventDefault()
     void openExternal(targetUrl).catch(() => {})
   })
@@ -118,6 +130,12 @@ function createWindow() {
   void mainWindow.loadURL(`${APP_ORIGIN}/`)
 }
 
+function activateMainWindow() {
+  if (mainWindow?.isDestroyed()) mainWindow = null
+  if (!mainWindow && app.isReady()) createWindow()
+  activateWindow(mainWindow)
+}
+
 const hasSingleInstanceLock = app.requestSingleInstanceLock()
 if (!hasSingleInstanceLock) {
   app.quit()
@@ -125,20 +143,29 @@ if (!hasSingleInstanceLock) {
   app.on('second-instance', (_event, commandLine) => {
     const deepLink = extractDeepLink(commandLine)
     if (deepLink) deliverDeepLink(deepLink)
-    if (!mainWindow) return
-    if (mainWindow.isMinimized()) mainWindow.restore()
-    mainWindow.show()
-    mainWindow.focus()
+    activateMainWindow()
   })
 
   app.on('open-url', (event, url) => {
     event.preventDefault()
     deliverDeepLink(url)
+    activateMainWindow()
   })
 
   app.whenReady().then(async () => {
     app.setAppUserModelId('com.resq.medical.desktop')
-    registerResQProtocol()
+    const protocolRegistration = attemptProtocolRegistration(
+      registerResQProtocol,
+    )
+    if (!protocolRegistration.ok) {
+      const detail = protocolRegistration.error instanceof Error
+        ? `\n\n${protocolRegistration.error.message}`
+        : ''
+      dialog.showErrorBox(
+        'ResQ 로그인 링크 등록 실패',
+        `운영체제에 ResQ 로그인 반환 링크를 등록하지 못했습니다. 앱을 Applications 폴더에 설치한 뒤 다시 실행해주세요.${detail}`,
+      )
+    }
 
     await protocol.handle(APP_SCHEME, (request) => {
       const filePath = resolveRendererFile(request.url)
@@ -155,7 +182,7 @@ if (!hasSingleInstanceLock) {
     createWindow()
 
     app.on('activate', () => {
-      if (BrowserWindow.getAllWindows().length === 0) createWindow()
+      activateMainWindow()
     })
   })
 

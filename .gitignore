@@ -7,6 +7,10 @@ supabase/.temp/cli-latest
 .env.local
 *.local
 *.log
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
 .DS_Store
 
 # Editor directories and files

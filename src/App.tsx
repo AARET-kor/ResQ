@@ -31,10 +31,13 @@ export default function App() {
   const {
     session,
     loading,
+    authPending,
+    authError,
     signIn,
     signInWithApple,
     appleSignInAvailable,
     signOut,
+    clearAuthError,
   } = useAuth()
   const [profile, setProfile] = useState<Profile | null>(null)
   // profileLoaded distinguishes "not fetched yet" from "fetched, no row" — the
@@ -86,6 +89,9 @@ export default function App() {
       onSignIn={signIn}
       onAppleSignIn={signInWithApple}
       appleSignInAvailable={appleSignInAvailable}
+      pending={authPending}
+      error={authError}
+      onClearError={clearAuthError}
     />
   )
   if (!isProfileComplete(profile)) {

@@ -52,6 +52,18 @@ macOS 서명 없는 앱은 다른 Mac에서 Gatekeeper 경고가 표시될 수 �
 
 Electron은 단일 인스턴스로 동작하며, 앱이 꺼져 있거나 이미 실행 중인 경우 모두 딥링크를 기존 창에 전달합니다. Supabase Auth 허용 redirect URL에도 위 로그인 콜백을 추가해야 합니다.
 
+Supabase Dashboard의 **Authentication → URL Configuration**은 다음과 같이 설정합니다.
+
+- Site URL: `https://resq-medical-workspace.aret.chatgpt.site`
+- Redirect URLs:
+  - `https://resq-medical-workspace.aret.chatgpt.site/**`
+  - `http://localhost:5173/**`
+  - `http://127.0.0.1:5173/**`
+  - `resq://auth/callback`
+  - `com.resq.medical://auth/callback`
+
+이 목록에 앱 콜백이 없으면 Supabase는 요청한 `redirectTo`를 사용하지 않고 Site URL로 되돌립니다. Site URL까지 `http://localhost:3000`으로 남아 있으면 로그인 완료 후 전혀 다른 로컬 웹 서비스가 열릴 수 있습니다.
+
 ## 보안 기본값
 
 - 렌더러의 Node.js 접근 차단

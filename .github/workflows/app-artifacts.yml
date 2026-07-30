@@ -3,6 +3,9 @@ name: Build installable apps
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
+      - feat/home-sections
     tags:
       - "v*"
 
