@@ -1,10 +1,16 @@
 node_modules/
 dist/
 dist-ssr/
+release/
+supabase/.temp/cli-latest
 .env
 .env.local
 *.local
 *.log
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
 .DS_Store
 
 # Editor directories and files
@@ -16,3 +22,4 @@ dist-ssr/
 *.njsproj
 *.sln
 *.sw?
+.claude/

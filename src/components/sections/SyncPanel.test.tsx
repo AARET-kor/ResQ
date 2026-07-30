@@ -1,0 +1,98 @@
+import { describe, it, expect, vi } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { SyncPanel } from './SyncPanel'
+import type { ExtractedEvent } from '../../lib/gmail'
+
+const base = {
+  googleConnected: true,
+  gmailConnected: true,
+  onSyncMonth: vi.fn(),
+  syncMessage: null,
+  onDownloadIcs: vi.fn(),
+  feedUrl: 'https://x.supabase.co/functions/v1/calendar-feed?token=abc',
+  onScanGmail: vi.fn(),
+  scanning: false,
+  extracted: [] as ExtractedEvent[],
+  onAddExtracted: vi.fn(),
+  onDismissExtracted: vi.fn(),
+  gmailConsentGranted: true,
+}
+
+describe('SyncPanel', () => {
+  it('offers google sync, ics download, feed url and gmail scan when connected', async () => {
+    const onSyncMonth = vi.fn(); const onDownloadIcs = vi.fn(); const onScanGmail = vi.fn()
+    render(<SyncPanel {...base} onSyncMonth={onSyncMonth} onDownloadIcs={onDownloadIcs} onScanGmail={onScanGmail} />)
+    await userEvent.click(screen.getByRole('button', { name: /일정·할 일 양방향 동기화/ }))
+    expect(onSyncMonth).toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('button', { name: /\.ics 다운로드/ }))
+    expect(onDownloadIcs).toHaveBeenCalled()
+    expect(screen.getByText(/calendar-feed\?token=abc/)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /Gmail에서 일정 가져오기/ }))
+    expect(onScanGmail).toHaveBeenCalled()
+  })
+  it('asks to reconnect google when not connected', () => {
+    render(<SyncPanel {...base} googleConnected={false} />)
+    expect(screen.getByText(/서버가 토큰을 안전하게 보관/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /일정·할 일 양방향 동기화/ })).not.toBeInTheDocument()
+  })
+  it('keeps Microsoft connection disabled until server credentials are configured', () => {
+    render(<SyncPanel {...base} />)
+    expect(screen.getByRole('button', { name: '관리자 설정 대기' })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Microsoft 계정 연결' })).not.toBeInTheDocument()
+  })
+  it('enables Microsoft connection when integration configuration is available', async () => {
+    const onConnectMicrosoft = vi.fn()
+    render(
+      <SyncPanel
+        {...base}
+        capabilities={{
+          google: false,
+          microsoft: true,
+          todoist: false,
+          ics: true,
+          caldav: false,
+        }}
+        onConnectMicrosoft={onConnectMicrosoft}
+      />,
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'Microsoft 계정 연결' }))
+    expect(onConnectMicrosoft).toHaveBeenCalledOnce()
+  })
+  it('shows the sync message and scanning state', () => {
+    render(<SyncPanel {...base} syncMessage="3건 동기화 완료" scanning={true} />)
+    expect(screen.getByText('3건 동기화 완료')).toBeInTheDocument()
+    expect(screen.getByText(/메일을 읽는 중/)).toBeInTheDocument()
+  })
+  it('renders extracted candidates with add/dismiss', async () => {
+    const onAddExtracted = vi.fn(); const onDismissExtracted = vi.fn()
+    const extracted: ExtractedEvent[] = [
+      { title: '추계학술대회', starts_at: '2026-08-20T09:00:00+09:00', kind: 'conference', location: '코엑스', ends_at: null },
+    ]
+    render(<SyncPanel {...base} extracted={extracted} onAddExtracted={onAddExtracted} onDismissExtracted={onDismissExtracted} />)
+    expect(screen.getByText('추계학술대회')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '일정에 추가' }))
+    expect(onAddExtracted).toHaveBeenCalledWith(extracted[0])
+    await userEvent.click(screen.getByRole('button', { name: '닫기' }))
+    expect(onDismissExtracted).toHaveBeenCalled()
+  })
+
+  it('requires explicit acknowledgements before granting Gmail AI consent', async () => {
+    const onGrantConsent = vi.fn().mockResolvedValue(true)
+    render(
+      <SyncPanel
+        {...base}
+        gmailConsentGranted={false}
+        onGrantConsent={onGrantConsent}
+      />,
+    )
+    await userEvent.click(screen.getByRole('button', { name: /동의 후 Gmail 사용/ }))
+    const confirm = screen.getByRole('button', { name: '동의하고 사용' })
+    expect(confirm).toBeDisabled()
+    const checks = screen.getAllByRole('checkbox')
+    for (const checkbox of checks) await userEvent.click(checkbox)
+    expect(confirm).toBeEnabled()
+    await userEvent.click(confirm)
+    expect(onGrantConsent).toHaveBeenCalledOnce()
+  })
+})

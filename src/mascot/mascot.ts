@@ -1,29 +1,26 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { upsertProfile, type Profile } from '../lib/profile'
-import { XP_AMOUNTS } from './events'
-import { prevDayISO } from './today'
+import type { Profile } from '../lib/profile'
 
-/** Grant daily-login XP once per calendar day; updates streak and appends to the ledger. */
+/** Server-authoritative once-per-KST-day login reward and streak update. */
 export async function recordDailyLogin(
   client: SupabaseClient,
   profile: Profile,
-  todayISO: string,
+  _clientDay: string,
 ): Promise<Profile> {
-  if (profile.last_active_on === todayISO) return profile
-  const amount = XP_AMOUNTS.daily_login
-  // The (user_id, day) unique index makes this the source of truth for "once per
-  // day": if a concurrent/StrictMode run already inserted today's login, this
-  // insert errors and we return without granting XP again.
-  const { error } = await client
-    .from('xp_events')
-    .insert({ user_id: profile.id, type: 'daily_login', amount, day: todayISO })
-  if (error) return profile
-  const continued = profile.last_active_on === prevDayISO(todayISO)
-  const streak = continued ? (profile.streak_days ?? 0) + 1 : 1
-  return upsertProfile(client, {
-    id: profile.id,
-    xp: (profile.xp ?? 0) + amount,
-    last_active_on: todayISO,
-    streak_days: streak,
-  })
+  const { data, error } = await client.rpc('grant_daily_login_xp')
+  if (error) throw error
+  return (data as Profile | null) ?? profile
+}
+
+/** Server-authoritative paper reward, fixed at +20 and unique per PMID. */
+export async function recordXpEvent(
+  client: SupabaseClient,
+  profile: Profile,
+  type: 'read_paper',
+  sourceKey: string,
+): Promise<Profile> {
+  if (type !== 'read_paper') throw new Error('unsupported client XP event')
+  const { data, error } = await client.rpc('grant_paper_read_xp', { p_pmid: sourceKey })
+  if (error) throw error
+  return (data as Profile | null) ?? profile
 }

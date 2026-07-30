@@ -49,24 +49,24 @@ export function Onboarding({
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 p-8">
           <h1 className="font-grotesk text-3xl uppercase">Welcome to ResQ</h1>
           {FIELDS.map((f) => (
-            <label key={f.key} className="flex flex-col gap-1 font-mono text-xs uppercase text-cream/80">
+            <label key={f.key} className="flex flex-col gap-1 font-sans text-xs uppercase text-cream/80">
               {f.label}
               <input
                 aria-label={f.label}
                 type={f.type}
                 value={text[f.key] ?? ''}
                 onChange={(e) => setText((s) => ({ ...s, [f.key]: e.target.value }))}
-                className="rounded-md bg-white/5 px-3 py-2 font-mono text-sm text-cream outline-none focus:ring-1 focus:ring-neon"
+                className="rounded-md bg-cream/5 px-3 py-2 font-sans text-sm text-cream outline-none focus:ring-1 focus:ring-neon"
               />
             </label>
           ))}
-          <label className="flex flex-col gap-1 font-mono text-xs uppercase text-cream/80">
+          <label className="flex flex-col gap-1 font-sans text-xs uppercase text-cream/80">
             전공
             <select
               aria-label="전공"
               value={specialty}
               onChange={(e) => setSpecialty(e.target.value)}
-              className="rounded-md bg-white/5 px-3 py-2 font-mono text-sm text-cream outline-none focus:ring-1 focus:ring-neon [&>option]:bg-bg"
+              className="rounded-md bg-cream/5 px-3 py-2 font-sans text-sm text-cream outline-none focus:ring-1 focus:ring-neon [&>option]:bg-bg"
             >
               <option value="">선택하세요</option>
               {SPECIALTIES.map((s) => (
@@ -75,7 +75,7 @@ export function Onboarding({
               <option value="기타">기타</option>
             </select>
           </label>
-          <label className="flex flex-col gap-1 font-mono text-xs uppercase text-cream/80">
+          <label className="flex flex-col gap-1 font-sans text-xs uppercase text-cream/80">
             연차
             <input
               aria-label="연차"
@@ -84,13 +84,13 @@ export function Onboarding({
               max={5}
               value={pgy}
               onChange={(e) => setPgy(e.target.value)}
-              className="rounded-md bg-white/5 px-3 py-2 font-mono text-sm text-cream outline-none focus:ring-1 focus:ring-neon"
+              className="rounded-md bg-cream/5 px-3 py-2 font-sans text-sm text-cream outline-none focus:ring-1 focus:ring-neon"
             />
           </label>
-          {error && <p role="alert" className="font-mono text-xs text-red-400">{error}</p>}
+          {error && <p role="alert" className="font-sans text-xs text-red-700 dark:text-red-400">{error}</p>}
           <button
             type="submit"
-            className="mt-2 rounded-md bg-neon px-4 py-3 font-grotesk text-sm uppercase text-bg transition hover:opacity-90"
+            className="mt-2 rounded-md bg-accent px-4 py-3 font-grotesk text-sm uppercase text-accentInk transition hover:opacity-90"
           >
             ResQ 시작하기
           </button>

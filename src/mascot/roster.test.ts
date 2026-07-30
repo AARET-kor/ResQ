@@ -12,11 +12,19 @@ describe('specialty → animal mapping', () => {
     expect(animalForSpecialty('외과').id).toBe('horse')
     expect(animalForSpecialty('마취통증의학과').id).toBe('chameleon')
     expect(animalForSpecialty('응급의학과').id).toBe('tiger')
+    expect(animalForSpecialty('성형외과').id).toBe('peacock')
   })
   it('falls back to alpaca for unmapped/missing specialty', () => {
     expect(animalForSpecialty('우주의학과').id).toBe('alpaca')
     expect(animalForSpecialty(null).id).toBe('alpaca')
     expect(animalForSpecialty(undefined).id).toBe('alpaca')
+  })
+  it('resolves common short/legacy names via aliases', () => {
+    expect(animalForSpecialty('마취과').id).toBe('chameleon')
+    expect(animalForSpecialty('정신과').id).toBe('cat')
+    expect(animalForSpecialty('소아과').id).toBe('rabbit')
+    expect(animalForSpecialty('비뇨기과').id).toBe('pig')
+    expect(animalForSpecialty(' 마취과 ').id).toBe('chameleon') // trims whitespace
   })
   it('every mapped specialty resolves to a real animal with label/tint/glyph', () => {
     for (const s of SPECIALTIES) {

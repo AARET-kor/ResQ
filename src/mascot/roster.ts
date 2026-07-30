@@ -22,6 +22,7 @@ export const ANIMALS: Animal[] = [
   { id: 'sheep', label: '양', glyph: '🐑', tint: '#cbd5e1' },
   { id: 'pig', label: '돼지', glyph: '🐷', tint: '#f472b6' },
   { id: 'bear', label: '곰', glyph: '🐻', tint: '#92400e' },
+  { id: 'peacock', label: '공작', glyph: '🦚', tint: '#22d3ee' },
   { id: 'alpaca', label: '알파카', glyph: '🦙', tint: '#eab308' },
 ]
 
@@ -36,6 +37,7 @@ export const SPECIALTY_ANIMALS: Record<string, string> = {
   내과: 'dog',
   정형외과: 'cow',
   외과: 'horse',
+  성형외과: 'peacock',
   마취통증의학과: 'chameleon',
   소아청소년과: 'rabbit',
   산부인과: 'rooster',
@@ -54,8 +56,45 @@ export const SPECIALTY_ANIMALS: Record<string, string> = {
 /** Onboarding select options (mapped specialties, in declaration order). */
 export const SPECIALTIES = Object.keys(SPECIALTY_ANIMALS)
 
+/** English short codes shown on specialty chips (성형외과 PS, 피부과 DM …). */
+export const SPECIALTY_ABBR: Record<string, string> = {
+  내과: 'IM',
+  정형외과: 'OS',
+  외과: 'GS',
+  성형외과: 'PS',
+  마취통증의학과: 'AN',
+  소아청소년과: 'PED',
+  산부인과: 'OBGY',
+  정신건강의학과: 'PSY',
+  영상의학과: 'RAD',
+  응급의학과: 'EM',
+  신경과: 'NR',
+  신경외과: 'NS',
+  피부과: 'DM',
+  이비인후과: 'ENT',
+  안과: 'OPH',
+  비뇨의학과: 'URO',
+  가정의학과: 'FM',
+}
+
+/** Common short/legacy names → official specialty (covers free-text profiles). */
+const SPECIALTY_ALIASES: Record<string, string> = {
+  마취과: '마취통증의학과',
+  정신과: '정신건강의학과',
+  소아과: '소아청소년과',
+  비뇨기과: '비뇨의학과',
+  응급실: '응급의학과',
+}
+
+/** Resolve aliases/legacy free-text to the official specialty name. */
+export function canonicalSpecialty(specialty: string | null | undefined): string {
+  if (!specialty) return ''
+  const s = specialty.trim()
+  return SPECIALTY_ALIASES[s] ?? s
+}
+
 export function animalForSpecialty(specialty: string | null | undefined): Animal {
-  const id = (specialty && SPECIALTY_ANIMALS[specialty]) || DEFAULT_ANIMAL_ID
+  const id = SPECIALTY_ANIMALS[canonicalSpecialty(specialty)] ?? DEFAULT_ANIMAL_ID
   return animalById(id)!
 }
 

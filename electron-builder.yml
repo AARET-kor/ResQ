@@ -1,0 +1,49 @@
+appId: com.resq.medical.desktop
+productName: ResQ
+copyright: Copyright © 2026 ResQ
+asar: true
+npmRebuild: false
+
+directories:
+  output: release/desktop
+
+files:
+  - dist/client/**/*
+  - desktop/**/*
+  - package.json
+  - "!desktop/*.test.cjs"
+  - "!node_modules/**/*"
+
+protocols:
+  - name: ResQ
+    schemes:
+      - resq
+
+mac:
+  category: public.app-category.productivity
+  icon: ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png
+  identity: null
+  target:
+    - dmg
+    - zip
+
+dmg:
+  sign: false
+
+win:
+  icon: ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png
+  target:
+    - nsis
+    - portable
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+
+linux:
+  category: Office
+  icon: ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png
+  target:
+    - AppImage

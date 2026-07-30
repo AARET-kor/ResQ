@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getProfile, upsertProfile, isProfileComplete, type Profile } from './profile'
+import { getProfile, upsertProfile, isProfileComplete, parseInterests, feedSpecialties, type Profile } from './profile'
 
 function fakeClient(row: Partial<Profile> | null) {
   return {
@@ -43,5 +43,16 @@ describe('profile data access', () => {
     expect(isProfileComplete(full)).toBe(true)
     expect(isProfileComplete({ ...full, nickname: null as any })).toBe(false)
     expect(isProfileComplete(null)).toBe(false)
+  })
+})
+
+describe('interests helpers', () => {
+  it('parses comma-separated interests', () => {
+    expect(parseInterests(' 성형외과, 피부과 ,성형외과')).toEqual(['성형외과', '피부과'])
+    expect(parseInterests(null)).toEqual([])
+  })
+  it('builds the feed list primary-first without duplicates', () => {
+    expect(feedSpecialties({ specialty: '성형외과', interests: '피부과,성형외과' })).toEqual(['성형외과', '피부과'])
+    expect(feedSpecialties({ specialty: null, interests: '피부과' })).toEqual(['피부과'])
   })
 })

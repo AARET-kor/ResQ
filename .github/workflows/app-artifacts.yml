@@ -1,0 +1,138 @@
+name: Build installable apps
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - feat/home-sections
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: app-artifacts-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+  VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+  VITE_APPLE_AUTH_ENABLED: ${{ vars.VITE_APPLE_AUTH_ENABLED || 'false' }}
+
+jobs:
+  verify:
+    name: Verify web and desktop
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Require production web configuration
+        shell: bash
+        run: |
+          if [[ -z "$VITE_SUPABASE_URL" || -z "$VITE_SUPABASE_ANON_KEY" ]]; then
+            echo "::error::Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY as repository secrets."
+            exit 1
+          fi
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run desktop:test
+      - run: npm run build
+
+  android-debug:
+    name: Android debug APK
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+      - uses: android-actions/setup-android@v4
+      - name: Install Android API 36
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+      - run: npm ci
+      - run: npm run mobile:sync
+      - name: Build debug APK
+        run: ./android/gradlew -p android assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ResQ-Android-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+  ios-simulator:
+    name: iOS Simulator app
+    needs: verify
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run mobile:sync
+      - name: Build without code signing
+        run: |
+          xcodebuild \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination "generic/platform=iOS Simulator" \
+            -derivedDataPath release/ios-simulator \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build
+      - name: Package simulator app
+        run: |
+          mkdir -p release/mobile
+          ditto -c -k --sequesterRsrc --keepParent \
+            release/ios-simulator/Build/Products/Debug-iphonesimulator/App.app \
+            release/mobile/ResQ-iOS-Simulator.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ResQ-iOS-Simulator
+          path: release/mobile/ResQ-iOS-Simulator.zip
+          if-no-files-found: error
+
+  desktop:
+    name: Desktop (${{ matrix.os }})
+    needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macos-latest
+          - windows-latest
+    runs-on: ${{ matrix.os }}
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run desktop:dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ResQ-Desktop-${{ runner.os }}-${{ runner.arch }}
+          path: |
+            release/desktop/*.dmg
+            release/desktop/*.zip
+            release/desktop/*.exe
+          if-no-files-found: error

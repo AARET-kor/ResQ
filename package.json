@@ -1,17 +1,35 @@
 {
   "name": "resq",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.1",
+  "description": "ResQ medical research workspace",
+  "author": "ResQ",
   "type": "module",
+  "main": "desktop/main.cjs",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "mobile:doctor": "./scripts/mobile-doctor.sh",
+    "mobile:sync": "npm run build && cap sync",
+    "mobile:ios": "npm run mobile:sync && cap open ios",
+    "mobile:android": "npm run mobile:sync && cap open android",
+    "mobile:android:debug": "npm run mobile:sync && cd android && ./gradlew assembleDebug",
+    "desktop:test": "node --test desktop/*.test.cjs",
+    "desktop:start": "npm run build && electron .",
+    "desktop:dir": "npm run build && electron-builder --dir",
+    "desktop:dist": "npm run build && electron-builder --publish never"
   },
   "dependencies": {
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/browser": "^8.0.4",
+    "@capacitor/cli": "^8.4.2",
+    "@capacitor/core": "^8.4.2",
+    "@capacitor/ios": "^8.4.2",
     "@supabase/supabase-js": "^2.110.3",
     "lucide-react": "^1.24.0",
     "react": "^19.2.7",
@@ -26,12 +44,15 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
     "autoprefixer": "^10.5.2",
+    "electron": "^43.2.0",
+    "electron-builder": "^26.15.3",
     "jsdom": "^29.1.1",
     "oxlint": "^1.71.0",
     "postcss": "^8.5.19",
     "tailwindcss": "^3.4.19",
     "typescript": "~6.0.2",
     "vite": "^8.1.1",
+    "vite-plugin-pwa": "^1.3.0",
     "vitest": "^4.1.10"
   }
 }

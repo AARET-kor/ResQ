@@ -1,23 +1,6 @@
-import { describe, it, expect } from 'vitest'
-import { recordDailyLogin } from './mascot'
+import { describe, expect, it } from 'vitest'
+import { recordDailyLogin, recordXpEvent } from './mascot'
 import type { Profile } from '../lib/profile'
-
-function fakeClient(row: Profile, insertError: unknown = null) {
-  const inserts: { table: string; values: any }[] = []
-  const client = {
-    inserts,
-    from: (table: string) => ({
-      upsert: (values: any) => ({
-        select: () => ({ single: () => Promise.resolve({ data: { ...row, ...values }, error: null }) }),
-      }),
-      insert: (values: any) => {
-        inserts.push({ table, values })
-        return Promise.resolve({ error: insertError })
-      },
-    }),
-  }
-  return client as any
-}
 
 const base: Profile = {
   id: 'u1', hospital: 'A병원', specialty: '내과', pgy: 2, nickname: '길동',
@@ -26,34 +9,37 @@ const base: Profile = {
   mascot_species: null, mascot_name: null, last_active_on: null, streak_days: 0,
 }
 
-describe('recordDailyLogin', () => {
-  it('grants +10 XP and records the event on a new day', async () => {
-    const client = fakeClient(base)
-    const p = await recordDailyLogin(client, base, '2026-07-14')
-    expect(p.xp).toBe(50)
-    expect(p.last_active_on).toBe('2026-07-14')
-    expect(p.streak_days).toBe(1)
-    expect(client.inserts).toEqual([
-      { table: 'xp_events', values: { user_id: 'u1', type: 'daily_login', amount: 10, day: '2026-07-14' } },
-    ])
+function fakeClient(results: Record<string, Profile | null>, error: unknown = null) {
+  const calls: { fn: string; args: unknown }[] = []
+  return {
+    calls,
+    rpc: (fn: string, args?: unknown) => {
+      calls.push({ fn, args })
+      return Promise.resolve({ data: results[fn] ?? null, error })
+    },
+  } as any
+}
+
+describe('server-authoritative mascot XP', () => {
+  it('delegates daily login amount, day, and streak calculation to the server', async () => {
+    const updated = { ...base, xp: 50, last_active_on: '2026-07-24', streak_days: 2 }
+    const client = fakeClient({ grant_daily_login_xp: updated })
+    expect(await recordDailyLogin(client, base, 'spoofed-client-day')).toEqual(updated)
+    expect(client.calls).toEqual([{ fn: 'grant_daily_login_xp', args: undefined }])
   })
-  it('increments the streak when the previous active day was yesterday', async () => {
-    const yesterday = { ...base, last_active_on: '2026-07-13', streak_days: 4 }
-    const p = await recordDailyLogin(fakeClient(yesterday), yesterday, '2026-07-14')
-    expect(p.streak_days).toBe(5)
+
+  it('grants paper XP through a fixed server RPC tied to the saved PMID', async () => {
+    const updated = { ...base, xp: 60 }
+    const client = fakeClient({ grant_paper_read_xp: updated })
+    expect(await recordXpEvent(client, base, 'read_paper', '12345')).toEqual(updated)
+    expect(client.calls).toEqual([{
+      fn: 'grant_paper_read_xp',
+      args: { p_pmid: '12345' },
+    }])
   })
-  it('is a no-op when already logged in today', async () => {
-    const todayRow = { ...base, last_active_on: '2026-07-14', xp: 70 }
-    const client = fakeClient(todayRow)
-    const p = await recordDailyLogin(client, todayRow, '2026-07-14')
-    expect(p.xp).toBe(70)
-    expect(client.inserts).toHaveLength(0)
-  })
-  it('does NOT grant XP when the ledger insert is rejected (duplicate day)', async () => {
-    // Simulates the unique-index race: a concurrent run already inserted today.
-    const client = fakeClient(base, { code: '23505', message: 'duplicate key' })
-    const p = await recordDailyLogin(client, base, '2026-07-14')
-    expect(p.xp).toBe(40) // unchanged — no double grant
-    expect(p).toBe(base)
+
+  it('does not silently accept an RPC failure', async () => {
+    const client = fakeClient({}, { message: 'denied' })
+    await expect(recordDailyLogin(client, base, '2026-07-24')).rejects.toEqual({ message: 'denied' })
   })
 })

@@ -1,21 +1,52 @@
-import { useEffect, useState } from 'react'
-import { useAuth } from './auth/AuthProvider'
+import { lazy, Suspense, useEffect, useState } from 'react'
+import { useAuth } from './auth/authContext'
 import { supabase } from './lib/supabase'
 import { getProfile, upsertProfile, isProfileComplete, type Profile } from './lib/profile'
 import { LoginScreen } from './components/LoginScreen'
 import { Onboarding, type OnboardingValues } from './components/Onboarding'
 import { Hero } from './components/Hero'
-import { TextureOverlay } from './components/TextureOverlay'
+import { SettingsModal } from './components/SettingsModal'
+import { AppHeader } from './components/AppHeader'
 import { useMascot } from './mascot/useMascot'
+import { useAppRoute } from './app/routes'
+import { HomePage } from './pages/HomePage'
+
+const PlanPage = lazy(() => import('./pages/PlanPage').then(({ PlanPage: page }) => ({ default: page })))
+const TeamPage = lazy(() => import('./pages/TeamPage').then(({ TeamPage: page }) => ({ default: page })))
+const PapersPage = lazy(() => import('./pages/PapersPage').then(({ PapersPage: page }) => ({ default: page })))
+const IntegrationsPage = lazy(() => import('./pages/IntegrationsPage').then(({ IntegrationsPage: page }) => ({ default: page })))
+
+function PageLoading() {
+  return (
+    <div
+      className="flex min-h-[55vh] items-center justify-center font-sans text-sm uppercase tracking-[0.24em] text-muted"
+      role="status"
+    >
+      workspace loading…
+    </div>
+  )
+}
 
 export default function App() {
-  const { session, loading, signIn, signOut } = useAuth()
+  const {
+    session,
+    loading,
+    authPending,
+    authError,
+    signIn,
+    signInWithApple,
+    appleSignInAvailable,
+    signOut,
+    clearAuthError,
+  } = useAuth()
   const [profile, setProfile] = useState<Profile | null>(null)
   // profileLoaded distinguishes "not fetched yet" from "fetched, no row" — the
   // gate below treats an authenticated-but-unfetched user as loading, so a
   // returning user never flashes the onboarding form before their profile lands.
   const [profileLoaded, setProfileLoaded] = useState(false)
   const [onboardError, setOnboardError] = useState<string | null>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const route = useAppRoute()
 
   const userId = session?.user.id
 
@@ -51,14 +82,80 @@ export default function App() {
   const mascot = useMascot(profile, setProfile)
 
   if (loading || (userId && !profileLoaded)) {
-    return <div className="flex min-h-screen items-center justify-center font-mono text-sm uppercase text-cream/60">loading…</div>
+    return <div className="flex min-h-screen items-center justify-center font-sans text-sm uppercase text-muted">loading…</div>
   }
-  if (!session) return (<><TextureOverlay /><LoginScreen onSignIn={signIn} /></>)
-  if (!isProfileComplete(profile)) return (<><TextureOverlay /><Onboarding onSubmit={handleOnboard} error={onboardError} /></>)
+  if (!session) return (
+    <LoginScreen
+      onSignIn={signIn}
+      onAppleSignIn={signInWithApple}
+      appleSignInAvailable={appleSignInAvailable}
+      pending={authPending}
+      error={authError}
+      onClearError={clearAuthError}
+    />
+  )
+  if (!isProfileComplete(profile)) {
+    return <Onboarding onSubmit={handleOnboard} error={onboardError} />
+  }
+  const activeProfile = profile!
+  const page = route === 'plan'
+    ? <PlanPage profile={activeProfile} onProfileChange={setProfile} />
+    : route === 'team'
+      ? <TeamPage profile={activeProfile} />
+      : route === 'papers'
+        ? <PapersPage profile={activeProfile} onProfileChange={setProfile} />
+        : route === 'integrations'
+          ? <IntegrationsPage profile={activeProfile} onProfileChange={setProfile} />
+          : null
   return (
     <>
-      <TextureOverlay />
-      <Hero profile={profile!} mascot={mascot} onSignOut={signOut} />
+      {route === 'home' ? (
+        <>
+          <Hero
+            profile={activeProfile}
+            mascot={mascot}
+            onSignOut={signOut}
+            onOpenSettings={() => setSettingsOpen(true)}
+          />
+          <HomePage profile={activeProfile} onProfileChange={setProfile} />
+        </>
+      ) : (
+        <>
+          <AppHeader
+            route={route}
+            profile={activeProfile}
+            onSignOut={signOut}
+            onOpenSettings={() => setSettingsOpen(true)}
+          />
+          <main>
+            <Suspense fallback={<PageLoading />}>
+              {page}
+            </Suspense>
+          </main>
+        </>
+      )}
+      {settingsOpen && (
+        <SettingsModal
+          profile={activeProfile}
+          onClose={() => setSettingsOpen(false)}
+          onSave={async (v) => {
+            try {
+              const saved = await upsertProfile(supabase, { id: activeProfile.id, ...v })
+              setProfile(saved)
+              setSettingsOpen(false)
+            } catch (e) {
+              // interests column may not exist yet (migration 0008) — at least
+              // persist the primary specialty change instead of losing both.
+              console.error(e)
+              try {
+                const saved = await upsertProfile(supabase, { id: activeProfile.id, specialty: v.specialty })
+                setProfile(saved)
+                setSettingsOpen(false)
+              } catch (e2) { console.error(e2) }
+            }
+          }}
+        />
+      )}
     </>
   )
 }

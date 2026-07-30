@@ -3,11 +3,17 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { AuthProvider } from './auth/AuthProvider.tsx'
+import { NotificationProvider } from './feedback/NotificationProvider.tsx'
+import { ThemeProvider } from './theme/ThemeProvider.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AuthProvider>
-      <App />
-    </AuthProvider>
+    <ThemeProvider>
+      <NotificationProvider>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </NotificationProvider>
+    </ThemeProvider>
   </StrictMode>,
 )
